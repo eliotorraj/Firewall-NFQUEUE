@@ -42,7 +42,7 @@ typedef struct {
 // ============================
 
 // Inizializza la tabella dei bucket.
-void rate_limit_init(void);
+int rate_limit_init(void);
 
 // Controlla se un pacchetto supera il rate limit.
 // Ritorna 1 se va bloccato, 0 se può continuare.

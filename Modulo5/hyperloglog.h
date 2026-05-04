@@ -19,10 +19,10 @@
 // ============================
 
 // Inizializza i registri HyperLogLog.
-void hll_init(void);
+int  hll_init(void);
 
 // Aggiunge un IP sorgente alla stima.
-void hll_add_ip(const char *src_ip);
+int  hll_add_ip(const char *src_ip);
 
 // Restituisce la stima del numero di IP sorgenti unici.
 int hll_get_cardinality(void);
