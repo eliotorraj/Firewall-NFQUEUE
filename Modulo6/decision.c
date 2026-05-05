@@ -17,7 +17,9 @@ void decision_init(void) {
         perror("fopen failed");
     }
 
-    rules_init();     
+    // Inizializzazione moduli
+
+    rules_init();
 
     if (rate_limit_init() != 0) {
         fprintf(stderr, "Rate limit init failed\n");
@@ -37,11 +39,11 @@ void decision_cleanup(void) {
     }
 }
 
-// LOG
+// LOG PACCHETTO
 
 static void log_packet(packet_t *pkt, const char *reason, int decision) {
 
-    if (!log_file) return;
+    if (!log_file || !pkt) return;
 
     time_t now = time(NULL);
     struct tm *t = localtime(&now);
@@ -65,7 +67,7 @@ static void log_packet(packet_t *pkt, const char *reason, int decision) {
     fflush(log_file);
 }
 
-// STATS
+// LOG STATISTICHE
 
 static void log_stats(void) {
 
@@ -89,16 +91,19 @@ decision_result_t decide(packet_t *pkt) {
         return (decision_result_t){DECISION_DROP, "NULL_PACKET"};
     }
 
-    // HLL
+    // HLL (BEST-EFFORT)
 
     if (hll_add_ip(pkt->src_ip) != 0) {
-        log_packet(pkt, "HLL_ERROR", DECISION_DROP);
-        return (decision_result_t){DECISION_DROP, "HLL_ERROR"};
+        // Logghiamo ma NON blocchiamo il traffico
+        log_packet(pkt, "HLL_ERROR", DECISION_ACCEPT);
     }
 
-    // RULES
+    // RULES (POLICY)
 
     rule_result_t rr = check_rules(pkt);
+
+    int base_decision = default_policy;
+    const char *reason = "DEFAULT_POLICY";
 
     if (rr.matched) {
 
@@ -108,8 +113,8 @@ decision_result_t decide(packet_t *pkt) {
         }
 
         if (rr.action == RULE_ALLOW) {
-            log_packet(pkt, "RULE_ALLOW", DECISION_ACCEPT);
-            return (decision_result_t){DECISION_ACCEPT, "RULE_ALLOW"};
+            base_decision = DECISION_ACCEPT;
+            reason = "RULE_ALLOW";
         }
     }
 
@@ -117,19 +122,19 @@ decision_result_t decide(packet_t *pkt) {
 
     int rl = rate_limit_check(pkt);
 
-    if (rl == 1) {
+    if (rl == RATE_LIMIT_DROP) {
         log_packet(pkt, "RATE_LIMIT", DECISION_DROP);
         return (decision_result_t){DECISION_DROP, "RATE_LIMIT"};
     }
 
-    if (rl == -1) {
+    if (rl == RATE_LIMIT_ERROR) {
         log_packet(pkt, "RATE_LIMIT_ERROR", DECISION_DROP);
         return (decision_result_t){DECISION_DROP, "RATE_LIMIT_ERROR"};
     }
 
-    // DEFAULT POLICY
+    // DECISION FINALE
 
-    log_packet(pkt, "DEFAULT_POLICY", default_policy);
+    log_packet(pkt, reason, base_decision);
 
     static int counter = 0;
     counter++;
@@ -139,7 +144,7 @@ decision_result_t decide(packet_t *pkt) {
     }
 
     return (decision_result_t){
-        .decision = default_policy,
-        .reason = "DEFAULT_POLICY"
+        .decision = base_decision,
+        .reason = reason
     };
 }
