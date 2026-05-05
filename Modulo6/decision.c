@@ -2,28 +2,35 @@
 #include <time.h>
 #include "decision.h"
 
-// ============================
-// CONFIGURAZIONE
-// ============================
-
 static int default_policy = DECISION_DROP;
 static FILE *log_file = NULL;
 
-// ============================
 // INIT
-// ============================
 
-void decision_init() {
+void decision_init(void) {
 
     default_policy = DECISION_DROP;
 
-    // Apri file log una sola volta (performance)
     log_file = fopen("firewall.log", "a");
+
+    if (!log_file) {
+        perror("fopen failed");
+    }
+
+    rate_limit_init();
+    hll_init();
 }
 
-// ============================
-// LOGGING
-// ============================
+// CLEANUP
+
+void decision_cleanup(void) {
+    if (log_file) {
+        fclose(log_file);
+        log_file = NULL;
+    }
+}
+
+// LOG
 
 static void log_packet(packet_t *pkt, const char *reason, int decision) {
 
@@ -31,6 +38,8 @@ static void log_packet(packet_t *pkt, const char *reason, int decision) {
 
     time_t now = time(NULL);
     struct tm *t = localtime(&now);
+
+    if (!t) return;
 
     fprintf(log_file,
         "[%02d:%02d:%02d] SRC=%s DST=%s SPORT=%d DPORT=%d PROTO=%d DECISION=%s REASON=%s\n",
@@ -46,14 +55,14 @@ static void log_packet(packet_t *pkt, const char *reason, int decision) {
         reason
     );
 
-    fflush(log_file); // flush immediato (debug-friendly)
+    fflush(log_file);
 }
 
-// ============================
-// STATISTICHE (HyperLogLog)
-// ============================
+// STATS
 
-static void log_stats() {
+static void log_stats(void) {
+
+    if (!log_file) return;
 
     int unique_ips = hll_get_cardinality();
 
@@ -65,20 +74,23 @@ static void log_stats() {
     fflush(log_file);
 }
 
-// ============================
 // DECISION ENGINE
-// ============================
 
 decision_result_t decide(packet_t *pkt) {
 
-    // ============================
-    // 1. TRAFFIC ANALYSIS (HLL)
-    // ============================
-    hll_add_ip(pkt->src_ip);
+    if (pkt == NULL) {
+        return (decision_result_t){DECISION_DROP, "NULL_PACKET"};
+    }
 
-    // ============================
-    // 2. FIREWALL RULES
-    // ============================
+    // HLL
+
+    if (hll_add_ip(pkt->src_ip) != 0) {
+        log_packet(pkt, "HLL_ERROR", DECISION_DROP);
+        return (decision_result_t){DECISION_DROP, "HLL_ERROR"};
+    }
+
+    // RULES
+
     rule_result_t rr = check_rules(pkt);
 
     if (rr.matched) {
@@ -94,20 +106,24 @@ decision_result_t decide(packet_t *pkt) {
         }
     }
 
-    // ============================
-    // 3. RATE LIMITING (Leaky Bucket)
-    // ============================
-    if (rate_limit_check(pkt)) {
+    // RATE LIMIT
+
+    int rl = rate_limit_check(pkt);
+
+    if (rl == 1) {
         log_packet(pkt, "RATE_LIMIT", DECISION_DROP);
         return (decision_result_t){DECISION_DROP, "RATE_LIMIT"};
     }
 
-    // ============================
-    // 4. DEFAULT POLICY
-    // ============================
+    if (rl == -1) {
+        log_packet(pkt, "RATE_LIMIT_ERROR", DECISION_DROP);
+        return (decision_result_t){DECISION_DROP, "RATE_LIMIT_ERROR"};
+    }
+
+    // DEFAULT
+
     log_packet(pkt, "DEFAULT_POLICY", default_policy);
 
-    // Log statistiche ogni N pacchetti (semplice versione)
     static int counter = 0;
     counter++;
 

@@ -2,16 +2,10 @@
 #include <string.h>
 #include "rules.h"
 
-// ============================
-// STORAGE REGOLE
-// ============================
-
 static rule_t rules[MAX_RULES];
 static int rules_count = 0;
 
-// ============================
 // UTILITY
-// ============================
 
 static int match_ip(const char *rule_ip, const char *pkt_ip) {
     if (strcmp(rule_ip, "ANY") == 0)
@@ -31,25 +25,20 @@ static int match_protocol(int rule_proto, int pkt_proto) {
     return rule_proto == pkt_proto;
 }
 
-// ============================
-// MATCHING COMPLETO
-// ============================
+// MATCH
 
 static int match_rule(packet_t *pkt, rule_t *r) {
 
-    // IP
     if (!match_ip(r->src_ip, pkt->src_ip))
         return 0;
 
     if (!match_ip(r->dst_ip, pkt->dst_ip))
         return 0;
 
-    // Protocollo
     if (!match_protocol(r->protocol, pkt->protocol))
         return 0;
 
-    // Porte (ATTENZIONE: ICMP non ha porte)
-    if (pkt->protocol != 1) { // non ICMP
+    if (pkt->protocol != 1) {
         if (!match_port(r->src_port, pkt->src_port))
             return 0;
 
@@ -60,15 +49,12 @@ static int match_rule(packet_t *pkt, rule_t *r) {
     return 1;
 }
 
-// ============================
-// INIT REGOLE
-// ============================
+// INIT
 
-void rules_init() {
+void rules_init(void) {
 
     rules_count = 0;
 
-    // 🔹 Esempio 1: blocca Telnet
     rules[rules_count++] = (rule_t){
         .src_ip = "ANY",
         .dst_ip = "ANY",
@@ -78,7 +64,6 @@ void rules_init() {
         .action = RULE_DROP
     };
 
-    // 🔹 Esempio 2: consenti HTTP
     rules[rules_count++] = (rule_t){
         .src_ip = "ANY",
         .dst_ip = "ANY",
@@ -88,7 +73,6 @@ void rules_init() {
         .action = RULE_ALLOW
     };
 
-    // 🔹 Esempio 3: blocca UDP
     rules[rules_count++] = (rule_t){
         .src_ip = "ANY",
         .dst_ip = "ANY",
@@ -98,7 +82,6 @@ void rules_init() {
         .action = RULE_DROP
     };
 
-    // 🔹 Esempio 4: blocca IP specifico
     rules[rules_count++] = (rule_t){
         .src_ip = "192.168.1.100",
         .dst_ip = "ANY",
@@ -109,11 +92,13 @@ void rules_init() {
     };
 }
 
-// ============================
 // CORE
-// ============================
 
 rule_result_t check_rules(packet_t *pkt) {
+
+    if (pkt == NULL) {
+        return (rule_result_t){0, 0};
+    }
 
     for (int i = 0; i < rules_count; i++) {
 
@@ -125,15 +110,10 @@ rule_result_t check_rules(packet_t *pkt) {
         }
     }
 
-    return (rule_result_t){
-        .matched = 0,
-        .action = 0
-    };
+    return (rule_result_t){0, 0};
 }
 
-// ============================
-// UTILITY DEBUG
-// ============================
+// DEBUG
 
 const char* rule_action_to_string(int action) {
     switch (action) {
