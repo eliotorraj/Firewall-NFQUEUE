@@ -43,7 +43,7 @@ static uint32_t mix32(uint32_t x) {
 
 // WORKFLOW:
 // Questa funzione viene chiamata quando hll_add_ip() riceve l'IP sorgente del pacchetto dal Decision Engine.
-static uint32_t hash_ipv4(const char *ip, uint32_t *out_hash) {
+static int hash_ipv4(const char *ip, uint32_t *out_hash) {
     struct in_addr addr;
     uint32_t ip_value;
 
