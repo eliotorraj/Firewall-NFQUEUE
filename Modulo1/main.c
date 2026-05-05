@@ -1,0 +1,38 @@
+#include <stdio.h>
+#include "nfqueue_core.h"
+#include "parser.h"
+
+
+/* ******** CALLBACK DI TEST ******** */
+
+int handle_packet(unsigned char *data, int len)
+{
+    packet_t pkt;
+    if (parse_packet(data, len, &pkt) == 0) {
+        fprintf(stderr, "Errore parsing pacchetto\n");
+        return 1; // ACCEPT (per evitare drop in caso di errore)
+    }
+    printf("SRC=%s DST=%s PROTO=%d SPORT=%d DPORT=%d\n",
+        pkt.src_ip,
+        pkt.dst_ip,
+        pkt.protocol,
+        pkt.src_port,
+        pkt.dst_port
+    );
+
+    return 1; // ACCEPT
+}
+
+int main()
+{
+    if (nfqueue_init(handle_packet) < 0) {
+        fprintf(stderr, "Errore init NFQUEUE\n");
+        return 1;
+    }    
+
+    nfqueue_run();
+
+    nfqueue_cleanup();
+
+    return 0;
+}
