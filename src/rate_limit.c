@@ -46,7 +46,7 @@ static unsigned int hash_ip(const char *ip) {
 // WORKFLOW:
 // Questa funzione va chiamata all'avvio del programma,
 // idealmente dentro decision_init().
-void rate_limit_init(void) {
+int rate_limit_init(void) {
     time_t now = time(NULL);
 
     if (now == (time_t)-1) {
