@@ -38,6 +38,7 @@ static int match_rule(packet_t *pkt, rule_t *r) {
     if (!match_protocol(r->protocol, pkt->protocol))
         return 0;
 
+    // ICMP non ha porte
     if (pkt->protocol != 1) {
         if (!match_port(r->src_port, pkt->src_port))
             return 0;
@@ -50,6 +51,7 @@ static int match_rule(packet_t *pkt, rule_t *r) {
 }
 
 // INIT
+
 
 void rules_init(void) {
 

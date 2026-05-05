@@ -2,6 +2,7 @@
 #define RULES_H
 
 #include <stdint.h>
+#include "packet.h"   // 🔥 ORA corretto
 
 // COSTANTI
 
@@ -9,16 +10,6 @@
 #define RULE_DROP  2
 
 #define MAX_RULES 100
-
-// STRUTTURA PACCHETTO
-
-typedef struct {
-    char src_ip[16];
-    char dst_ip[16];
-    int src_port;
-    int dst_port;
-    int protocol; // TCP=6, UDP=17, ICMP=1
-} packet_t;
 
 // STRUTTURA REGOLA
 

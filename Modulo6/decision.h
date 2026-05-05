@@ -20,13 +20,7 @@ typedef struct {
 // API
 
 void decision_init(void);
+void decision_cleanup(void);
 decision_result_t decide(packet_t *pkt);
-
-int rate_limit_init(void);
-int rate_limit_check(packet_t *pkt);
-
-int hll_init(void);
-int hll_add_ip(const char *src_ip);
-int hll_get_cardinality(void);
 
 #endif

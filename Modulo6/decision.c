@@ -17,8 +17,15 @@ void decision_init(void) {
         perror("fopen failed");
     }
 
-    rate_limit_init();
-    hll_init();
+    rules_init();     
+
+    if (rate_limit_init() != 0) {
+        fprintf(stderr, "Rate limit init failed\n");
+    }
+
+    if (hll_init() != 0) {
+        fprintf(stderr, "HLL init failed\n");
+    }
 }
 
 // CLEANUP
@@ -120,7 +127,7 @@ decision_result_t decide(packet_t *pkt) {
         return (decision_result_t){DECISION_DROP, "RATE_LIMIT_ERROR"};
     }
 
-    // DEFAULT
+    // DEFAULT POLICY
 
     log_packet(pkt, "DEFAULT_POLICY", default_policy);
 
