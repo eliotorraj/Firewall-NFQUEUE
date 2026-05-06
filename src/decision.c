@@ -6,18 +6,14 @@ static int default_policy = DECISION_DROP;
 static FILE *log_file = NULL;
 
 // INIT
-
 void decision_init(void) {
 
     default_policy = DECISION_DROP;
 
     log_file = fopen("firewall.log", "a");
-
     if (!log_file) {
         perror("fopen failed");
     }
-
-    // Inizializzazione moduli
 
     rules_init();
 
@@ -31,7 +27,6 @@ void decision_init(void) {
 }
 
 // CLEANUP
-
 void decision_cleanup(void) {
     if (log_file) {
         fclose(log_file);
@@ -39,15 +34,13 @@ void decision_cleanup(void) {
     }
 }
 
-// LOG PACCHETTO
-
+// LOG
 static void log_packet(packet_t *pkt, const char *reason, int decision) {
 
     if (!log_file || !pkt) return;
 
     time_t now = time(NULL);
     struct tm *t = localtime(&now);
-
     if (!t) return;
 
     fprintf(log_file,
@@ -67,8 +60,7 @@ static void log_packet(packet_t *pkt, const char *reason, int decision) {
     fflush(log_file);
 }
 
-// LOG STATISTICHE
-
+// STATS
 static void log_stats(void) {
 
     if (!log_file) return;
@@ -84,22 +76,21 @@ static void log_stats(void) {
 }
 
 // DECISION ENGINE
-
 decision_result_t decide(packet_t *pkt) {
 
     if (pkt == NULL) {
         return (decision_result_t){DECISION_DROP, "NULL_PACKET"};
     }
 
-    // HLL (BEST-EFFORT)
-
+    // HLL (best-effort)
     if (hll_add_ip(pkt->src_ip) != 0) {
-        // Logghiamo ma NON blocchiamo il traffico
-        log_packet(pkt, "HLL_ERROR", DECISION_ACCEPT);
+        if (log_file) {
+            fprintf(log_file, "[WARN] HLL_ERROR: %s\n", hll_last_error());
+            fflush(log_file);
+        }
     }
 
-    // RULES (POLICY)
-
+    // RULES
     rule_result_t rr = check_rules(pkt);
 
     int base_decision = default_policy;
@@ -118,8 +109,7 @@ decision_result_t decide(packet_t *pkt) {
         }
     }
 
-    // RATE LIMIT
-
+    // RATE LIMIT (SEMPRE applicato)
     int rl = rate_limit_check(pkt);
 
     if (rl == RATE_LIMIT_DROP) {
@@ -132,8 +122,7 @@ decision_result_t decide(packet_t *pkt) {
         return (decision_result_t){DECISION_DROP, "RATE_LIMIT_ERROR"};
     }
 
-    // DECISION FINALE
-
+    // FINAL
     log_packet(pkt, reason, base_decision);
 
     static int counter = 0;

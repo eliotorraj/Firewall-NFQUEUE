@@ -24,9 +24,9 @@ int handle_packet(unsigned char *data, int len)
         pkt.dst_port
     );
 
-    int decision = decide(&pkt);
-
-    return decision; // 1 = ACCEPT, 0 = DROP
+    decision_result_t res = decide(&pkt);
+    
+    return res.decision;
 }
 
 int main()

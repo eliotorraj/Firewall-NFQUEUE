@@ -4,6 +4,8 @@
 #include <string.h>
 #include <stdint.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
+#include <signal.h>
 
 #include <libnetfilter_queue/libnetfilter_queue.h>
 #include <linux/netfilter.h>
@@ -12,9 +14,15 @@
 static struct nfq_handle *h = NULL;
 static struct nfq_q_handle *qh = NULL;
 static int fd = -1;
+static volatile int running = 1;
 
 // callback utente (livello superiore)
 static packet_handler_cb user_cb = NULL;
+
+static void handle_sigint(int sig) {
+    (void)sig;
+    running = 0;
+}
 
 // ============================
 // CALLBACK INTERNA NFQUEUE
@@ -124,18 +132,27 @@ void nfqueue_run()
 {
     char buffer[4096] __attribute__ ((aligned));
 
+    signal(SIGINT, handle_sigint);
+
     printf("[NFQUEUE] In ascolto pacchetti...\n");
 
-    while (1) {
+    while (running) {
+
         int rv = recv(fd, buffer, sizeof(buffer), 0);
 
-        if (rv >= 0) {
+        if (rv > 0) {
             nfq_handle_packet(h, buffer, rv);
-        } else {
+        }
+        else if (rv == 0) {
+            continue;
+        }
+        else {
             perror("recv");
             break;
         }
     }
+
+    printf("[NFQUEUE] Stopping...\n");
 }
 
 /* ******************* CLEANUP ******************* */
