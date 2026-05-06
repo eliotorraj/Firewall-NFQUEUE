@@ -16,7 +16,7 @@ static struct nfq_q_handle *qh = NULL;
 static int fd = -1;
 static volatile int running = 1;
 
-// callback utente (livello superiore)
+// callback utente
 static packet_handler_cb user_cb = NULL;
 
 static void handle_sigint(int sig) {
@@ -24,9 +24,7 @@ static void handle_sigint(int sig) {
     running = 0;
 }
 
-// ============================
 // CALLBACK INTERNA NFQUEUE
-// ============================
 
 static int nfqueue_callback(struct nfq_q_handle *qh,
                        struct nfgenmsg *nfmsg,
@@ -39,9 +37,7 @@ static int nfqueue_callback(struct nfq_q_handle *qh,
     unsigned char *payload;
     int payload_len;
 
-    // ============================
     // 1. OTTIENI HEADER (ID PACCHETTO)
-    // ============================
     struct nfqnl_msg_packet_hdr *ph;
     ph = nfq_get_msg_packet_hdr(nfa);
 
@@ -50,9 +46,7 @@ static int nfqueue_callback(struct nfq_q_handle *qh,
         id = ntohl(ph->packet_id);
     }
 
-    // ============================
     // 2. OTTIENI PAYLOAD
-    // ============================
     payload_len = nfq_get_payload(nfa, &payload);
 
     if (payload_len < 0) {
@@ -60,9 +54,7 @@ static int nfqueue_callback(struct nfq_q_handle *qh,
         return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
     }
 
-    // ============================
     // 3. CHIAMA CALLBACK UTENTE
-    // ============================
     int decision = NF_ACCEPT;
 
     if (user_cb) {
@@ -74,13 +66,12 @@ static int nfqueue_callback(struct nfq_q_handle *qh,
             decision = NF_DROP;
     }
 
-    // ============================
     // 4. INVIA VERDICT AL KERNEL
-    // ============================
     return nfq_set_verdict(qh, id, decision, 0, NULL);
 }
 
-/* **************  INIT *************** */
+//INIT
+
 int nfqueue_init(packet_handler_cb cb)
 {
     user_cb = cb;
@@ -127,7 +118,7 @@ int nfqueue_init(packet_handler_cb cb)
     return 0;
 }
 
-/* ******************* LOOP PRINCIPALE ******************* */
+//Loop Principale
 void nfqueue_run()
 {
     char buffer[4096] __attribute__ ((aligned));
@@ -155,7 +146,7 @@ void nfqueue_run()
     printf("[NFQUEUE] Stopping...\n");
 }
 
-/* ******************* CLEANUP ******************* */
+//CleanUp
 void nfqueue_cleanup()
 {
     if (qh)

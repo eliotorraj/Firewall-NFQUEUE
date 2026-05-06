@@ -3,12 +3,11 @@
 
 #include <stdint.h>
 
-// ============================
 // CALLBACK DEFINITA DAL LIVELLO SUPERIORE
-// ============================
 // Ritorna:
 // 1 = ACCEPT
 // 0 = DROP
+
 typedef int (*packet_handler_cb)(
     unsigned char *data,
     int len

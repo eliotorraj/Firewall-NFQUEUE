@@ -2,7 +2,7 @@
 #define RULES_H
 
 #include <stdint.h>
-#include "packet.h"   // 🔥 ORA corretto
+#include "packet.h"   
 
 // COSTANTI
 

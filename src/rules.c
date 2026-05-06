@@ -52,11 +52,20 @@ static int match_rule(packet_t *pkt, rule_t *r) {
 
 // INIT
 
-
 void rules_init(void) {
 
     rules_count = 0;
 
+    rules[rules_count++] = (rule_t){
+        .src_ip = "192.168.1.100",
+        .dst_ip = "ANY",
+        .src_port = -1,
+        .dst_port = -1,
+        .protocol = -1,
+        .action = RULE_DROP
+    };
+
+    // Blocca TELNET
     rules[rules_count++] = (rule_t){
         .src_ip = "ANY",
         .dst_ip = "ANY",
@@ -66,15 +75,7 @@ void rules_init(void) {
         .action = RULE_DROP
     };
 
-    rules[rules_count++] = (rule_t){
-        .src_ip = "ANY",
-        .dst_ip = "ANY",
-        .src_port = -1,
-        .dst_port = 80,
-        .protocol = 6,
-        .action = RULE_ALLOW
-    };
-
+    // Blocca UDP
     rules[rules_count++] = (rule_t){
         .src_ip = "ANY",
         .dst_ip = "ANY",
@@ -84,13 +85,14 @@ void rules_init(void) {
         .action = RULE_DROP
     };
 
+    // Allow HTTP
     rules[rules_count++] = (rule_t){
-        .src_ip = "192.168.1.100",
+        .src_ip = "ANY",
         .dst_ip = "ANY",
         .src_port = -1,
-        .dst_port = -1,
-        .protocol = -1,
-        .action = RULE_DROP
+        .dst_port = 80,
+        .protocol = 6,
+        .action = RULE_ALLOW
     };
 }
 

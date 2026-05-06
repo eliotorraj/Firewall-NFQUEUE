@@ -11,9 +11,7 @@ const char *hll_last_error(void) {
     return last_error;
 }
 
-// ============================
 // STORAGE HYPERLOGLOG
-// ============================
 
 // WORKFLOW:
 // Questi registri vivono per tutta l'esecuzione.
@@ -23,13 +21,8 @@ static unsigned char registers[HLL_M];
 #define HLL_HASH_BITS 32
 #define HLL_REMAINING_BITS (HLL_HASH_BITS - HLL_P)
 
-// ============================
 // HASH IPV4
-// ============================
 
-// Mixing ispirato al finalizer MurmurHash3.
-// Non è MurmurHash3 completo: serve solo a distribuire meglio l'IPv4 a 32 bit.
-//Le costanti qui sotto sono quelle usate nel finalizer: https://github.com/PeterScott/murmur3/blob/master/murmur3.c nella funzione static FORCE_INLINE uint32_t fmix32 ( uint32_t h ) 
 static uint32_t mix32(uint32_t x) {
     x ^= x >> 16;
     x *= 0x85ebca6bu;
@@ -68,9 +61,7 @@ static int hash_ipv4(const char *ip, uint32_t *out_hash) {
 }
 
 
-// ============================
 // COUNT ZEROS
-// ============================
 
 // Conta quanti zeri iniziali ci sono nei bit rimanenti dell'hash. Più zeri iniziali troviamo, più è probabile che il numero di elementi distinti osservati sia alto, e quindi anche il rank.
 static int hll_rank_slow(uint32_t value) {
@@ -119,9 +110,7 @@ static int hll_rank_fast(uint32_t value) {
 }
 
 
-// ============================
 // INIT
-// ============================
 
 // WORKFLOW:
 // Questa funzione va chiamata all'avvio del firewall,
@@ -135,9 +124,7 @@ int  hll_init(void) {
     return HLL_OK;
 }
 
-// ============================
 // AGGIUNGI IP
-// ============================
 
 // WORKFLOW:
 // Questa funzione viene chiamata all'inizio di decide().
@@ -178,9 +165,7 @@ int  hll_add_ip(const char *src_ip) {
     return HLL_OK;
 }
 
-// ============================
 // STIMA CARDINALITA'
-// ============================
 
 // WORKFLOW:
 // Questa funzione viene chiamata dal logging del Decision Engine, per esempio ogni 50 pacchetti.

@@ -4,9 +4,7 @@
 #include <time.h>
 #include "packet.h"
 
-// ============================
 // COSTANTI LEAKY BUCKET
-// ============================
 
 // Numero massimo di IP sorgenti tracciabili.
 #define MAX_BUCKETS 1024
@@ -23,9 +21,7 @@
 #define RATE_LIMIT_DROP   1
 #define RATE_LIMIT_ERROR -1
 
-// ============================
 // STRUTTURA BUCKET
-// ============================
 
 // Ogni IP sorgente ha un bucket.
 // Più pacchetti manda, più tokens accumula.
@@ -37,9 +33,7 @@ typedef struct {
     int used;                // 1 se questo slot è occupato
 } bucket_t;
 
-// ============================
 // API MODULO 4
-// ============================
 
 // Inizializza la tabella dei bucket.
 int rate_limit_init(void);

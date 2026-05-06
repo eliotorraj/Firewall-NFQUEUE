@@ -4,7 +4,7 @@
 
 #include "parser.h"
 
-/* ******** Packet Header ******** */ 
+//Packet Header
 struct ip_header {
     unsigned char ihl:4;
     unsigned char version:4;
@@ -29,7 +29,7 @@ struct udp_header {
     unsigned short dest;
 };
 
-/* ******* Parser ******* */
+//Parser
 int parse_packet(unsigned char *data, int len, packet_t *pkt)
 {
     if (!data || !pkt) {

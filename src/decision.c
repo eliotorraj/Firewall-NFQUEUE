@@ -82,7 +82,7 @@ decision_result_t decide(packet_t *pkt) {
         return (decision_result_t){DECISION_DROP, "NULL_PACKET"};
     }
 
-    // HLL (best-effort)
+    // HLL (non influisce sulla decisione)
     if (hll_add_ip(pkt->src_ip) != 0) {
         if (log_file) {
             fprintf(log_file, "[WARN] HLL_ERROR: %s\n", hll_last_error());
@@ -109,7 +109,7 @@ decision_result_t decide(packet_t *pkt) {
         }
     }
 
-    // RATE LIMIT (SEMPRE applicato)
+    // RATE LIMIT
     int rl = rate_limit_check(pkt);
 
     if (rl == RATE_LIMIT_DROP) {

@@ -5,18 +5,15 @@
 
 #define HLL_OK      0
 #define HLL_ERROR  -1
-// ============================
+
 // CONFIGURAZIONE HYPERLOGLOG
-// ============================
 
 // HLL_P indica quanti bit usiamo per scegliere il registro.
 // Con P=10 abbiamo 2^10 = 1024 registri.
 #define HLL_P 10
 #define HLL_M (1 << HLL_P)
 
-// ============================
 // API MODULO 5
-// ============================
 
 // Inizializza i registri HyperLogLog.
 int  hll_init(void);

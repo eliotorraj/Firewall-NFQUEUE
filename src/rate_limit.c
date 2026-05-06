@@ -2,9 +2,7 @@
 #include <time.h>
 #include "rate_limit.h"
 
-// ============================
 // STORAGE BUCKET
-// ============================
 
 // WORKFLOW:
 // Questa tabella vive per tutta l'esecuzione del firewall.
@@ -19,9 +17,7 @@ const char *rate_limit_last_error(void) {
     return last_error;
 }
 
-// ============================
 // HASH IP
-// ============================
 
 // Trasforma una stringa IP in un numero.
 // Serve per scegliere rapidamente una posizione nella tabella.
@@ -39,9 +35,7 @@ static unsigned int hash_ip(const char *ip) {
     return hash;
 }
 
-// ============================
 // INIT
-// ============================
 
 // WORKFLOW:
 // Questa funzione va chiamata all'avvio del programma,
@@ -65,9 +59,7 @@ int rate_limit_init(void) {
     return RATE_LIMIT_OK;
 }
 
-// ============================
 // CERCA O CREA BUCKET
-// ============================
 
 // WORKFLOW:
 // Quando arriva un pacchetto, dobbiamo trovare il bucket
@@ -101,9 +93,7 @@ static bucket_t *find_or_create_bucket(const char *ip) {
     return &buckets[index];
 }
 
-// ============================
 // CORE RATE LIMITING
-// ============================
 
 // WORKFLOW:
 // Questa funzione viene chiamata dal Decision Engine
