@@ -43,18 +43,37 @@ int parse_packet(unsigned char *data, int len, packet_t *pkt)
         return 0;
     }
 
+    // VAalidazione IHL
+    if (ip->ihl < 5) {
+        return 0;
+    }
+
+    int ip_header_len = ip->ihl * 4;
+
+    // Validazione buffer
+    if (len < ip_header_len) {
+        return 0;
+    }
+
+    // Controllo coerenza interna del pkt
+    if (ntohs(ip->tot_len) < ip_header_len) {
+        return 0;
+    }
+
     // IP
     struct in_addr src, dst;
     src.s_addr = ip->saddr;
     dst.s_addr = ip->daddr;
 
-    strncpy(pkt->src_ip, inet_ntoa(src), 16);
-    strncpy(pkt->dst_ip, inet_ntoa(dst), 16);
-
+/*  check di ritorno
+    if (inet_ntop(AF_INET, &src, pkt->src_ip, sizeof(pkt->src_ip)) == NULL) {
+        return 0;
+    }*/
+   
+    //rispetto alla strcpy, questa è trade-safe
+    inet_ntop(AF_INET, &src, pkt->src_ip, sizeof(pkt->src_ip));
+    inet_ntop(AF_INET, &dst, pkt->dst_ip, sizeof(pkt->dst_ip));
     pkt->protocol = ip->protocol;
-
-    // Offset header IP
-    int ip_header_len = ip->ihl * 4;
 
     // Default (per ICMP o fallback)
     pkt->src_port = 0;

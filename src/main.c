@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include "nfqueue_core.h"
+
 #include "parser.h"
+#include "decision.h"
 
 
 /* ******** CALLBACK DI TEST ******** */
@@ -8,6 +10,8 @@
 int handle_packet(unsigned char *data, int len)
 {
     packet_t pkt;
+
+    // Parsing
     if (parse_packet(data, len, &pkt) == 0) {
         fprintf(stderr, "Errore parsing pacchetto\n");
         return 1; // ACCEPT (per evitare drop in caso di errore)
@@ -20,7 +24,9 @@ int handle_packet(unsigned char *data, int len)
         pkt.dst_port
     );
 
-    return 1; // ACCEPT
+    int decision = decide(&pkt);
+
+    return decision; // 1 = ACCEPT, 0 = DROP
 }
 
 int main()
