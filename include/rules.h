@@ -2,7 +2,7 @@
 #define RULES_H
 
 #include <stdint.h>
-#include "packet.h"   
+#include "packet.h"
 
 // COSTANTI
 
@@ -11,18 +11,25 @@
 
 #define MAX_RULES 100
 
+#define RULES_OK     0
+#define RULES_ERROR -1
+
 // STRUTTURA REGOLA
 
 typedef struct {
-    char src_ip[16];   // "ANY"
-    char dst_ip[16];   // "ANY"
-    int src_port;      // -1 = ANY
-    int dst_port;      // -1 = ANY
-    int protocol;      // -1 = ANY
-    int action;        // RULE_ALLOW / RULE_DROP
+    char src_ip[16];
+    char dst_ip[16];
+
+    int src_port;
+    int dst_port;
+
+    int protocol;
+
+    int action;
+
 } rule_t;
 
-// RISULTATO
+// RISULTATO MATCH
 
 typedef struct {
     int matched;
@@ -31,8 +38,10 @@ typedef struct {
 
 // API
 
-void rules_init(void);
+int rules_init(const char *config_file);
+
 rule_result_t check_rules(packet_t *pkt);
-const char* rule_action_to_string(int action);
+
+const char *rule_action_to_string(int action);
 
 #endif
