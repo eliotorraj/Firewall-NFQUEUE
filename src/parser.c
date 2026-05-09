@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stddef.h>
 #include <arpa/inet.h>
 
 #include "parser.h"
@@ -32,11 +33,20 @@ struct udp_header {
 //Parser
 int parse_packet(unsigned char *data, int len, packet_t *pkt)
 {
+    size_t packet_len;
+    size_t ip_header_len;
+
     if (!data || !pkt) {
         return 0;
     }
 
-    if (len < sizeof(struct ip_header)) {
+    if (len <= 0) {
+        return 0;
+    }
+
+    packet_len = (size_t)len;
+
+    if (packet_len < sizeof(struct ip_header)) {
         return 0;
     }
 
@@ -52,9 +62,9 @@ int parse_packet(unsigned char *data, int len, packet_t *pkt)
         return 0;
     }
 
-    int ip_header_len = ip->ihl * 4;
+    ip_header_len = (size_t)ip->ihl * 4u;
 
-    if (len < ip_header_len) {
+    if (packet_len < ip_header_len) {
         return 0;
     }
 
@@ -81,7 +91,7 @@ int parse_packet(unsigned char *data, int len, packet_t *pkt)
 
     // TCP
     if (ip->protocol == 6) {
-        if (len < ip_header_len + sizeof(struct tcp_header))
+        if (packet_len < ip_header_len + sizeof(struct tcp_header))
             return 0;
 
         struct tcp_header *tcp = (struct tcp_header *)(data + ip_header_len);
@@ -92,7 +102,7 @@ int parse_packet(unsigned char *data, int len, packet_t *pkt)
 
     // UDP
     else if (ip->protocol == 17) {
-        if (len < ip_header_len + sizeof(struct udp_header))
+        if (packet_len < ip_header_len + sizeof(struct udp_header))
             return 0;
 
         struct udp_header *udp = (struct udp_header *)(data + ip_header_len);

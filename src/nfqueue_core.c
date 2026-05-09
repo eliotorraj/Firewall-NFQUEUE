@@ -51,23 +51,28 @@ static int nfqueue_callback(struct nfq_q_handle *qh,
 
     if (payload_len < 0) {
         fprintf(stderr, "Errore: impossibile ottenere payload\n");
-        return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+        return nfq_set_verdict2(qh, id, NF_ACCEPT, FW_MARK_NONE, 0, NULL);
     }
 
     // 3. CHIAMA CALLBACK UTENTE
-    int decision = NF_ACCEPT;
+    int verdict = NF_ACCEPT;
+    uint32_t mark = FW_MARK_NONE;
 
     if (user_cb) {
         int res = user_cb(payload, payload_len);
 
-        if (res == 1)
-            decision = NF_ACCEPT;
-        else
-            decision = NF_DROP;
+        if (res == 1) {
+            verdict = NF_ACCEPT;
+            mark = FW_MARK_PASS;
+        } else {
+            // Il DROP reale viene applicato dalle regole iptables dopo il save-mark.
+            verdict = NF_ACCEPT;
+            mark = FW_MARK_DROP;
+        }
     }
 
     // 4. INVIA VERDICT AL KERNEL
-    return nfq_set_verdict(qh, id, decision, 0, NULL);
+    return nfq_set_verdict2(qh, id, verdict, mark, 0, NULL);
 }
 
 //INIT
