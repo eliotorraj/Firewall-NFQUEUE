@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <ctype.h>
+#include <arpa/inet.h>
 
 #include "rules.h"
 
@@ -11,40 +14,85 @@ static int rules_count = 0;
 // UTILITY
 // ============================
 
-static int parse_action(const char *s)
+static int is_comment_or_blank(const char *line)
 {
-    if (strcmp(s, "ALLOW") == 0)
-        return RULE_ALLOW;
+    while (isspace((unsigned char)*line)) {
+        line++;
+    }
 
-    if (strcmp(s, "DROP") == 0)
-        return RULE_DROP;
-
-    return -1;
+    return *line == '\0' || *line == '#';
 }
 
-static int parse_protocol(const char *s)
+static int parse_action(const char *s, int *out)
 {
-    if (strcmp(s, "ANY") == 0)
-        return -1;
+    if (strcmp(s, "ALLOW") == 0) {
+        *out = RULE_ALLOW;
+        return RULES_OK;
+    }
 
-    if (strcmp(s, "TCP") == 0)
-        return 6;
+    if (strcmp(s, "DROP") == 0) {
+        *out = RULE_DROP;
+        return RULES_OK;
+    }
 
-    if (strcmp(s, "UDP") == 0)
-        return 17;
+    return RULES_ERROR;
+}
 
-    if (strcmp(s, "ICMP") == 0)
+static int parse_protocol(const char *s, int *out)
+{
+    if (strcmp(s, "ANY") == 0) {
+        *out = -1;
+        return RULES_OK;
+    }
+
+    if (strcmp(s, "TCP") == 0) {
+        *out = 6;
+        return RULES_OK;
+    }
+
+    if (strcmp(s, "UDP") == 0) {
+        *out = 17;
+        return RULES_OK;
+    }
+
+    if (strcmp(s, "ICMP") == 0) {
+        *out = 1;
+        return RULES_OK;
+    }
+
+    return RULES_ERROR;
+}
+
+static int parse_port(const char *s, int *out)
+{
+    char *end;
+    long value;
+
+    if (strcmp(s, "ANY") == 0) {
+        *out = -1;
+        return RULES_OK;
+    }
+
+    errno = 0;
+    value = strtol(s, &end, 10);
+
+    if (errno != 0 || end == s || *end != '\0' || value < 0 || value > 65535) {
+        return RULES_ERROR;
+    }
+
+    *out = (int)value;
+    return RULES_OK;
+}
+
+static int valid_ip_or_any(const char *s)
+{
+    struct in_addr addr;
+
+    if (strcmp(s, "ANY") == 0) {
         return 1;
+    }
 
-    return -1;
-}
-
-static int parse_port(const char *s)
-{
-    if (strcmp(s, "ANY") == 0)
-        return -1;
-
-    return atoi(s);
+    return inet_pton(AF_INET, s, &addr) == 1;
 }
 
 static int match_ip(const char *rule_ip, const char *pkt_ip)
@@ -120,8 +168,8 @@ int rules_init(const char *config_file)
 
     while (fgets(line, sizeof(line), fp)) {
 
-        // Salta commenti e righe vuote
-        if (line[0] == '#' || line[0] == '\n')
+        // Salta commenti e righe vuote, anche con spazi iniziali.
+        if (is_comment_or_blank(line))
             continue;
 
         char action[16];
@@ -153,6 +201,31 @@ int rules_init(const char *config_file)
         }
 
         rule_t r;
+        int action_value;
+        int src_port_value;
+        int dst_port_value;
+        int protocol_value;
+
+        if (!valid_ip_or_any(src_ip) || !valid_ip_or_any(dst_ip)) {
+            fprintf(stderr, "IP non valido nella regola: %s", line);
+            continue;
+        }
+
+        if (parse_action(action, &action_value) != RULES_OK) {
+            fprintf(stderr, "Azione non valida nella regola: %s", line);
+            continue;
+        }
+
+        if (parse_port(src_port, &src_port_value) != RULES_OK ||
+            parse_port(dst_port, &dst_port_value) != RULES_OK) {
+            fprintf(stderr, "Porta non valida nella regola: %s", line);
+            continue;
+        }
+
+        if (parse_protocol(proto, &protocol_value) != RULES_OK) {
+            fprintf(stderr, "Protocollo non valido nella regola: %s", line);
+            continue;
+        }
 
         strncpy(r.src_ip, src_ip, sizeof(r.src_ip));
         r.src_ip[15] = '\0';
@@ -160,12 +233,12 @@ int rules_init(const char *config_file)
         strncpy(r.dst_ip, dst_ip, sizeof(r.dst_ip));
         r.dst_ip[15] = '\0';
 
-        r.src_port = parse_port(src_port);
-        r.dst_port = parse_port(dst_port);
+        r.src_port = src_port_value;
+        r.dst_port = dst_port_value;
 
-        r.protocol = parse_protocol(proto);
+        r.protocol = protocol_value;
 
-        r.action = parse_action(action);
+        r.action = action_value;
 
         rules[rules_count++] = r;
     }

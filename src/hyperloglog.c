@@ -63,6 +63,7 @@ static int hash_ipv4(const char *ip, uint32_t *out_hash) {
 
 // COUNT ZEROS
 
+#if !defined(__GNUC__)
 // Conta quanti zeri iniziali ci sono nei bit rimanenti dell'hash. Più zeri iniziali troviamo, più è probabile che il numero di elementi distinti osservati sia alto, e quindi anche il rank.
 static int hll_rank_slow(uint32_t value) {
     //si parte dal rank più basso
@@ -85,6 +86,7 @@ static int hll_rank_slow(uint32_t value) {
 
     return rank;
 }
+#endif
 
 //GCC offre la possibilità di contare il numero di 0 successivi direttamente in hardware come visto a lezione--> Possibile implementazione più efficiente 
 
