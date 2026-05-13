@@ -259,7 +259,6 @@ sudo iptables -t mangle -L FW_POSTROUTING -v -n --line-numbers
 ---
 
 # Autori
-* 
 
 * Federico Guastella
 * Marco Tavani
