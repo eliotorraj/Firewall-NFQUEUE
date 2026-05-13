@@ -169,6 +169,16 @@ Il funzionamento è il seguente:
 Questo meccanismo riduce il numero di pacchetti inviati in userspace e diminuisce l’overhead complessivo del firewall.
 
 ---
+## Requisiti
+
+Su Ubuntu/WSL:
+
+```bash
+sudo apt update
+sudo apt install build-essential libnetfilter-queue-dev iptables netcat-openbsd python3
+```
+
+---
 
 # Compilazione ed Esecuzione
 
