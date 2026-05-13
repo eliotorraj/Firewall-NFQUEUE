@@ -1,176 +1,267 @@
-# NFQUEUE Userspace Firewall
+# Firewall Userspace con NFQUEUE
 
-Firewall userspace in C basato su NFQUEUE. Il programma riceve pacchetti dal kernel, li parsa, applica regole statiche caricate da file, aggiorna HyperLogLog, controlla il rate limit con Leaky Bucket e restituisce un verdict tramite NFQUEUE.
+## Introduzione
 
-Il progetto usa anche i packet mark e `CONNMARK` per salvare la decisione sui flussi gestiti dal kernel.
+Il progetto consiste nello sviluppo di un firewall userspace in linguaggio C per sistemi Linux, basato sul sottosistema NFQUEUE di Netfilter.
+L’obiettivo è intercettare pacchetti IP selezionati dal kernel, analizzarli in spazio utente e applicare politiche di filtraggio personalizzate.
 
-## Requisiti
+Oltre al filtraggio tradizionale, il firewall integra due meccanismi di analisi del traffico:
 
-Su Ubuntu/WSL:
+* un sistema di rate limiting basato su algoritmo Leaky Bucket;
+* una stima del numero di IP sorgenti distinti tramite HyperLogLog.
+
+---
+
+# Architettura del Sistema
+
+Il firewall è suddiviso nei seguenti moduli principali:
+
+| Modulo         | Funzione                                         |
+| -------------- | ------------------------------------------------ |
+| `nfqueue_core` | Gestione della comunicazione con NFQUEUE         |
+| `parser`       | Estrazione delle informazioni dai pacchetti IPv4 |
+| `rules`        | Caricamento e verifica delle regole firewall     |
+| `decision`     | Decision engine del firewall                     |
+| `rate_limit`   | Controllo del traffico tramite Leaky Bucket      |
+| `hyperloglog`  | Stima degli IP sorgenti distinti                 |
+| `logging`      | Registrazione di eventi e decisioni              |
+
+Flusso di elaborazione:
+
+1. Il kernel inoltra i pacchetti selezionati a una coda NFQUEUE.
+2. Il firewall riceve il pacchetto in userspace.
+3. Il parser estrae le informazioni rilevanti:
+
+   * IP sorgente e destinazione;
+   * protocollo;
+   * porte TCP/UDP.
+   
+4. Il decision engine:
+
+   * aggiorna le statistiche HyperLogLog;
+   * verifica eventuali limiti di traffico;
+   * applica le regole firewall;
+   * produce il verdetto finale.
+   
+5. Il risultato viene restituito al kernel.
+
+Questa struttura rende il progetto più semplice da estendere e facilita la separazione delle responsabilità tra i moduli.
+
+---
+
+# Utilizzo di NFQUEUE
+
+NFQUEUE è un componente di Netfilter che consente di trasferire pacchetti dal kernel allo spazio utente.
+In questo progetto viene utilizzato per delegare al firewall userspace la decisione finale sui pacchetti intercettati.
+
+Le regole `iptables` indirizzano verso la queue `0` solo il traffico di interesse.
+
+Esempio:
 
 ```bash
-sudo apt update
-sudo apt install build-essential libnetfilter-queue-dev iptables netcat-openbsd python3
+iptables -t mangle -A OUTPUT -p tcp --dport 80 -j NFQUEUE --queue-num 0
 ```
 
-Il firewall deve essere eseguito con privilegi root per aprire NFQUEUE:
+In questo modo soltanto il traffico TCP destinato alla porta 80 viene analizzato dal firewall.
 
-```bash
-sudo ./firewall
+---
+
+# Parsing dei Pacchetti
+
+Il modulo `parser` analizza pacchetti IPv4 e supporta i protocolli:
+
+* TCP
+* UDP
+* ICMP
+
+Le informazioni estratte vengono salvate nella struttura condivisa:
+
+```
+struct packet_info {
+    char src_ip[16];
+    char dst_ip[16];
+    int src_port;
+    int dst_port;
+    int protocol;
+};
 ```
 
-## Build
+Durante il parsing vengono effettuati controlli di validità sugli header IPv4 e TCP/UDP.
+I pacchetti malformati vengono scartati prima di raggiungere il decision engine.
 
-```bash
-cd ~/NFQUEUE_UserSpace_Firewall
-make firewall
-```
+---
 
-Il binario generato è `./firewall`.
+# Gestione delle Regole
 
-## Configurazione Regole
-
-Le regole statiche sono in [firewall.conf](firewall.conf).
-
-Formato:
+Le regole firewall sono definite nel file `firewall.conf` con il formato:
 
 ```text
 ACTION SRC_IP DST_IP SRC_PORT DST_PORT PROTOCOL
 ```
 
-Valori supportati:
-
-```text
-ACTION:   ALLOW, DROP
-IP:       IPv4 oppure ANY
-PORT:     0-65535 oppure ANY
-PROTOCOL: TCP, UDP, ICMP oppure ANY
-```
-
 Esempio:
 
 ```text
-DROP 192.168.1.100 ANY ANY ANY ANY
 DROP ANY ANY ANY 23 TCP
-DROP ANY ANY ANY ANY UDP
 ALLOW ANY ANY ANY 80 TCP
 ```
 
-Le regole vengono valutate in ordine: la prima regola che matcha decide. Per questo i `DROP` più specifici devono stare prima degli `ALLOW` generici.
+Le regole vengono valutate in ordine sequenziale.
+La prima regola che produce match determina la decisione finale.
 
-## Test Automatici
+Sono supportati:
 
-```bash
-make test
-```
+* indirizzi IPv4 specifici;
+* wildcard `ANY`;
+* protocolli TCP, UDP e ICMP.
 
-I test controllano:
+---
 
-- parsing pacchetti IPv4/TCP
-- rigetto di pacchetti malformati
-- caricamento regole da `firewall.conf`
-- priorità dei `DROP`
-- default policy
-- rate limit
-- HyperLogLog
-- integrazione `main -> parser -> decision engine`
+# Rate Limiting con Leaky Bucket
 
-## Avvio Naturale Del Firewall
+Per limitare possibili attacchi flood, il progetto implementa un sistema di rate limiting basato su algoritmo Leaky Bucket.
 
-Terminale 1:
+Per ogni IP sorgente vengono mantenuti:
 
-```bash
-cd ~/NFQUEUE_UserSpace_Firewall
-make firewall
-sudo ./firewall
-```
+* numero di richieste accumulate;
+* timestamp dell’ultimo aggiornamento.
 
-Terminale 2, abilita le regole iptables con mark/CONNMARK:
+Quando il traffico supera la soglia configurata, il pacchetto può essere classificato come sospetto e gestito dal decision engine.
 
-```bash
-cd ~/NFQUEUE_UserSpace_Firewall
-sudo ./scripts/fw_mark_setup.sh [PORTA_1] [PORTA_2] ... [PORTA_N]
-```
-Esempio:
-```text
-cd ~/NFQUEUE_UserSpace_Firewall
-sudo ./scripts/fw_mark_setup.sh 80 23
-```
-Questo manda a NFQUEUE solo il traffico TCP verso `127.0.0.1` sulle porte `80` e `23`.
+Questo approccio consente di limitare traffico anomalo senza bloccare immediatamente connessioni legittime.
 
-Per vedere regole e contatori:
+---
 
-```bash
-sudo ./scripts/fw_mark_status.sh
-```
+# Stima degli IP con HyperLogLog
 
-Per rimuovere tutte le regole create dagli script:
+Il modulo `hyperloglog` viene utilizzato per stimare il numero di indirizzi IP sorgenti distinti osservati dal firewall.
 
-```bash
-sudo ./scripts/fw_mark_cleanup.sh
-```
+HyperLogLog è una struttura probabilistica che permette di ottenere una stima della cardinalità utilizzando poca memoria.
 
-## Smoke Test Reale
+Nel progetto:
 
-Lo smoke test avvia il firewall, configura iptables, apre un server locale su porta `80`, genera traffico reale su `80` e `23`, stampa log e contatori, poi pulisce tutto.
+* ogni IP sorgente viene convertito in un hash;
+* l’hash aggiorna uno specifico registro della struttura;
+* la cardinalità stimata viene calcolata periodicamente dal decision engine.
 
-```bash
-make firewall
-sudo ./scripts/fw_mark_smoke_test.sh
-```
+Questo approccio consente di monitorare il traffico in modo efficiente anche con un numero elevato di host.
 
+---
 
-Nota: sui SYN droppati verso porta `23`, alcune ritrasmissioni possono comunque tornare in NFQUEUE perché il flusso TCP non viene confermato in conntrack. Per i flussi accettati, invece, il riuso del `CONNMARK` è visibile nei contatori.
+# Packet Mark e CONNMARK
 
-## Packet Mark E CONNMARK
+Il firewall utilizza i packet mark di Netfilter per associare una decisione ai flussi già analizzati.
 
-Il codice usa:
+Sono definiti due mark principali:
 
 ```text
 FW_MARK_PASS = 0x1
 FW_MARK_DROP = 0x2
 ```
 
-Il flusso è:
+Il funzionamento è il seguente:
 
-```text
-OUTPUT -> FW_OUTPUT
-FW_OUTPUT -> CONNMARK --restore-mark
-mark 0x1 -> ACCEPT
-mark 0x2 -> DROP
-nessun mark -> NFQUEUE
-NFQUEUE/userspace -> nfq_set_verdict2(..., mark)
-POSTROUTING -> CONNMARK --save-mark
-mark 0x2 -> DROP
-mark 0x1 -> ACCEPT
-```
+1. un pacchetto privo di mark entra in NFQUEUE;
+2. il firewall decide se consentire o bloccare il traffico;
+3. il mark viene salvato nel conntrack tramite `CONNMARK`;
+4. i pacchetti successivi dello stesso flusso vengono gestiti direttamente dal kernel.
 
-Il programma C non usa `NF_DROP` diretto per i pacchetti droppati logicamente. Restituisce `NF_ACCEPT` con `FW_MARK_DROP`, così iptables può salvare il mark nel conntrack e poi droppare il pacchetto.
+Questo meccanismo riduce il numero di pacchetti inviati in userspace e diminuisce l’overhead complessivo del firewall.
 
-## Debug Rapido
+---
 
-Vedere regole mangle:
+# Compilazione ed Esecuzione
+
+Per compilare il progetto:
 
 ```bash
-sudo iptables -t mangle -S
+make firewall
 ```
 
-Vedere contatori:
+Il programma deve essere eseguito con privilegi root:
 
 ```bash
-sudo iptables -t mangle -L FW_OUTPUT -v -n --line-numbers
-sudo iptables -t mangle -L FW_POSTROUTING -v -n --line-numbers
+sudo ./firewall
 ```
 
-Pulizia completa delle regole del progetto:
+Per intercettare il traffico è necessario installare le regole `iptables` fornite dagli script del progetto.
+
+Esempio:
+
+```bash
+sudo ./scripts/fw_mark_setup.sh 80 23
+```
+
+Lo script configura:
+
+* regole NFQUEUE;
+* packet mark e CONNMARK;
+* catene `mangle` necessarie al test.
+
+Per visualizzare regole e contatori:
+
+```bash
+sudo ./scripts/fw_mark_status.sh
+```
+
+Per rimuovere tutte le regole create:
 
 ```bash
 sudo ./scripts/fw_mark_cleanup.sh
 ```
 
-Se la shell si blocca dopo una regola NFQUEUE, apri un nuovo terminale e pulisci:
+---
+
+# Testing
+
+Il progetto include uno smoke test automatico:
 
 ```bash
-wsl -d Ubuntu --user root -- bash -lc "cd /PATH_PROGETTO && ./scripts/fw_mark_cleanup.sh"
+make firewall
+sudo ./scripts/fw_mark_smoke_test.sh
 ```
+
+Lo script:
+
+1. avvia il firewall;
+2. configura automaticamente le regole `iptables`;
+3. crea un server HTTP locale sulla porta 80;
+4. genera traffico reale verso le porte 80 e 23;
+5. verifica il corretto comportamento del firewall.
+
+In particolare:
+
+* il traffico HTTP verso porta 80 deve essere accettato;
+* il traffico Telnet verso porta 23 deve essere bloccato.
+
+Al termine vengono mostrati:
+
+* log del firewall;
+* contatori delle regole;
+* stato dei mark Netfilter.
+
+---
+
+# Debug
+
+Per visualizzare le regole `mangle`:
+
+```bash
+sudo iptables -t mangle -S
+```
+
+Per visualizzare i contatori delle chain:
+
+```bash
+sudo iptables -t mangle -L FW_OUTPUT -v -n --line-numbers
+sudo iptables -t mangle -L FW_POSTROUTING -v -n --line-numbers
+```
+---
+
+# Autori
+* 
+
+* Federico Guastella
+* Marco Tavani
+* Elio Torraj
 
