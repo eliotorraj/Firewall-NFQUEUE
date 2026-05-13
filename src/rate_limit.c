@@ -41,6 +41,7 @@ static unsigned int hash_ip(const char *ip) {
 // Questa funzione va chiamata all'avvio del programma,
 // idealmente dentro decision_init().
 int rate_limit_init(void) {
+
     time_t now = time(NULL);
 
     if (now == (time_t)-1) {
@@ -66,11 +67,13 @@ int rate_limit_init(void) {
 // associato al suo IP sorgente.
 // Se non esiste ancora, lo creiamo.
 static bucket_t *find_or_create_bucket(const char *ip) {
+
     unsigned int index = hash_ip(ip) % MAX_BUCKETS;
     unsigned int start = index;
 
     // Se la posizione è occupata da un altro IP, proviamo la posizione successiva.
     while (buckets[index].used) {
+
         if (strcmp(buckets[index].ip, ip) == 0) {
             return &buckets[index];
         }
@@ -104,6 +107,7 @@ static bucket_t *find_or_create_bucket(const char *ip) {
 // - il tempo fa diminuire il livello del bucket
 // - se il livello supera la soglia, il pacchetto viene droppato
 int rate_limit_check(packet_t *pkt) {
+
     bucket_t *bucket;
     time_t now;
     int elapsed;
@@ -130,6 +134,7 @@ int rate_limit_check(packet_t *pkt) {
     }
 
     now = time(NULL);
+
     if (now == (time_t)-1) {
         last_error = "time() failed in rate_limit_check";
         return RATE_LIMIT_ERROR;
@@ -143,6 +148,7 @@ int rate_limit_check(packet_t *pkt) {
 
     // Se è passato tempo dall'ultimo pacchetto, il bucket si svuota.
     if (elapsed > 0) {
+        
         leaked_tokens = elapsed * RATE_LIMIT_LEAK_RATE;
 
         bucket->tokens -= leaked_tokens;

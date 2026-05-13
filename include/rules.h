@@ -19,14 +19,10 @@
 typedef struct {
     char src_ip[16];
     char dst_ip[16];
-
     int src_port;
     int dst_port;
-
     int protocol;
-
     int action;
-
 } rule_t;
 
 // RISULTATO MATCH

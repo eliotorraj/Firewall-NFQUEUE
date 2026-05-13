@@ -5,12 +5,10 @@
 #include "decision.h"
 #include "rules.h"
 
-// ============================
 // CALLBACK
-// ============================
 
-int handle_packet(unsigned char *data, int len)
-{
+int handle_packet(unsigned char *data, int len){
+    
     packet_t pkt;
 
     if (parse_packet(data, len, &pkt) == 0) {
@@ -33,17 +31,14 @@ int handle_packet(unsigned char *data, int len)
     return res.decision;
 }
 
-// ============================
 // MAIN
-// ============================
 
 int main()
 {
     // Carica regole da file
     if (rules_init("firewall.conf") != 0) {
 
-        fprintf(stderr,
-            "Errore caricamento firewall.conf\n");
+        fprintf(stderr, "Errore caricamento firewall.conf\n");
 
         return 1;
     }
@@ -54,8 +49,7 @@ int main()
     // Init NFQUEUE
     if (nfqueue_init(handle_packet) < 0) {
 
-        fprintf(stderr,
-            "Errore init NFQUEUE\n");
+        fprintf(stderr, "Errore init NFQUEUE\n");
 
         decision_cleanup();
 

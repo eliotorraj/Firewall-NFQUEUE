@@ -10,12 +10,8 @@
 static rule_t rules[MAX_RULES];
 static int rules_count = 0;
 
-// ============================
-// UTILITY
-// ============================
+static int is_comment_or_blank(const char *line){
 
-static int is_comment_or_blank(const char *line)
-{
     while (isspace((unsigned char)*line)) {
         line++;
     }
@@ -23,8 +19,8 @@ static int is_comment_or_blank(const char *line)
     return *line == '\0' || *line == '#';
 }
 
-static int parse_action(const char *s, int *out)
-{
+static int parse_action(const char *s, int *out){
+
     if (strcmp(s, "ALLOW") == 0) {
         *out = RULE_ALLOW;
         return RULES_OK;
@@ -38,8 +34,8 @@ static int parse_action(const char *s, int *out)
     return RULES_ERROR;
 }
 
-static int parse_protocol(const char *s, int *out)
-{
+static int parse_protocol(const char *s, int *out){
+
     if (strcmp(s, "ANY") == 0) {
         *out = -1;
         return RULES_OK;
@@ -63,8 +59,8 @@ static int parse_protocol(const char *s, int *out)
     return RULES_ERROR;
 }
 
-static int parse_port(const char *s, int *out)
-{
+static int parse_port(const char *s, int *out){
+
     char *end;
     long value;
 
@@ -84,8 +80,8 @@ static int parse_port(const char *s, int *out)
     return RULES_OK;
 }
 
-static int valid_ip_or_any(const char *s)
-{
+static int valid_ip_or_any(const char *s){
+
     struct in_addr addr;
 
     if (strcmp(s, "ANY") == 0) {
@@ -95,64 +91,55 @@ static int valid_ip_or_any(const char *s)
     return inet_pton(AF_INET, s, &addr) == 1;
 }
 
-static int match_ip(const char *rule_ip, const char *pkt_ip)
-{
+static int match_ip(const char *rule_ip, const char *pkt_ip){
+
     if (strcmp(rule_ip, "ANY") == 0)
         return 1;
 
     return strcmp(rule_ip, pkt_ip) == 0;
 }
 
-static int match_port(int rule_port, int pkt_port)
-{
+static int match_port(int rule_port, int pkt_port){
+
     if (rule_port == -1)
         return 1;
 
     return rule_port == pkt_port;
 }
 
-static int match_protocol(int rule_proto, int pkt_proto)
-{
+static int match_protocol(int rule_proto, int pkt_proto){
+
     if (rule_proto == -1)
         return 1;
 
     return rule_proto == pkt_proto;
 }
 
-// ============================
-// MATCH
-// ============================
+// Cerca corrispondenza con le regole del file .conf
 
-static int match_rule(packet_t *pkt, rule_t *r)
-{
-    if (!match_ip(r->src_ip, pkt->src_ip))
-        return 0;
+static int match_rule(packet_t *pkt, rule_t *r){
 
-    if (!match_ip(r->dst_ip, pkt->dst_ip))
-        return 0;
+    if (!match_ip(r->src_ip, pkt->src_ip)) return 0;
 
-    if (!match_protocol(r->protocol, pkt->protocol))
-        return 0;
+    if (!match_ip(r->dst_ip, pkt->dst_ip)) return 0;
+
+    if (!match_protocol(r->protocol, pkt->protocol)) return 0;
 
     // ICMP non usa porte
     if (pkt->protocol != 1) {
 
-        if (!match_port(r->src_port, pkt->src_port))
-            return 0;
+        if (!match_port(r->src_port, pkt->src_port)) return 0;
 
-        if (!match_port(r->dst_port, pkt->dst_port))
-            return 0;
+        if (!match_port(r->dst_port, pkt->dst_port)) return 0;
     }
 
     return 1;
 }
 
-// ============================
 // LOAD RULES
-// ============================
 
-int rules_init(const char *config_file)
-{
+int rules_init(const char *config_file){
+
     FILE *fp;
 
     char line[256];
@@ -245,19 +232,13 @@ int rules_init(const char *config_file)
 
     fclose(fp);
 
-    printf("[RULES] Caricate %d regole da %s\n",
-           rules_count,
-           config_file);
+    printf("[RULES] Caricate %d regole da %s\n", rules_count, config_file);
 
     return RULES_OK;
 }
 
-// ============================
-// CORE
-// ============================
+rule_result_t check_rules(packet_t *pkt){
 
-rule_result_t check_rules(packet_t *pkt)
-{
     if (pkt == NULL) {
         return (rule_result_t){0, 0};
     }
@@ -276,9 +257,7 @@ rule_result_t check_rules(packet_t *pkt)
     return (rule_result_t){0, 0};
 }
 
-// ============================
-// DEBUG
-// ============================
+// To String
 
 const char *rule_action_to_string(int action)
 {

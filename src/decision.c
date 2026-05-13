@@ -6,9 +6,7 @@
 static int default_policy = DECISION_DROP;
 static FILE *log_file = NULL;
 
-// ============================
 // INIT
-// ============================
 
 void decision_init(void)
 {
@@ -22,52 +20,36 @@ void decision_init(void)
 
     // Init rate limiter
     if (rate_limit_init() != 0) {
-
-        fprintf(stderr,
-            "Rate limit init failed\n");
+        fprintf(stderr,"Rate limit init failed\n");
     }
 
     // Init HyperLogLog
     if (hll_init() != 0) {
-
-        fprintf(stderr,
-            "HLL init failed\n");
+        fprintf(stderr,"HLL init failed\n");
     }
 }
 
-// ============================
 // CLEANUP
-// ============================
 
 void decision_cleanup(void)
 {
     if (log_file) {
-
         fclose(log_file);
-
         log_file = NULL;
     }
 }
 
-// ============================
 // LOG PACCHETTO
-// ============================
 
-static void log_packet(
-    packet_t *pkt,
-    const char *reason,
-    int decision
-)
-{
-    if (!log_file || !pkt)
-        return;
+static void log_packet(packet_t *pkt, const char *reason, int decision){
+    
+    if (!log_file || !pkt) return;
 
     time_t now = time(NULL);
 
     struct tm *t = localtime(&now);
 
-    if (!t)
-        return;
+    if (!t) return;
 
     fprintf(
         log_file,
@@ -100,33 +82,23 @@ static void log_packet(
     fflush(log_file);
 }
 
-// ============================
 // LOG STATS
-// ============================
 
-static void log_stats(void)
-{
-    if (!log_file)
-        return;
+static void log_stats(void){
+    
+    if (!log_file) return;
 
-    int unique_ips =
-        hll_get_cardinality();
+    int unique_ips = hll_get_cardinality();
 
-    fprintf(
-        log_file,
-        "[STATS] Unique source IPs ≈ %d\n",
-        unique_ips
-    );
+    fprintf(log_file, "[STATS] Unique source IPs ≈ %d\n", unique_ips);
 
     fflush(log_file);
 }
 
-// ============================
 // DECISION ENGINE
-// ============================
 
-decision_result_t decide(packet_t *pkt)
-{
+decision_result_t decide(packet_t *pkt){
+    
     if (pkt == NULL) {
 
         return (decision_result_t){
@@ -135,47 +107,32 @@ decision_result_t decide(packet_t *pkt)
         };
     }
 
-    // ============================
-    // HLL (best effort)
-    // ============================
+    // HLL
 
     if (hll_add_ip(pkt->src_ip) != 0) {
 
         if (log_file) {
 
-            fprintf(
-                log_file,
-                "[WARN] HLL_ERROR: %s\n",
-                hll_last_error()
-            );
+            fprintf(log_file, "[WARN] HLL_ERROR: %s\n", hll_last_error());
 
             fflush(log_file);
         }
     }
 
-    // ============================
     // RULES
-    // ============================
 
-    rule_result_t rr =
-        check_rules(pkt);
+    rule_result_t rr = check_rules(pkt);
 
-    int base_decision =
-        default_policy;
+    int base_decision = default_policy;
 
-    const char *reason =
-        "DEFAULT_POLICY";
+    const char *reason = "DEFAULT_POLICY";
 
     if (rr.matched) {
 
         // DROP immediato
         if (rr.action == RULE_DROP) {
 
-            log_packet(
-                pkt,
-                "RULE_DROP",
-                DECISION_DROP
-            );
+            log_packet(pkt, "RULE_DROP", DECISION_DROP);
 
             return (decision_result_t){
                 DECISION_DROP,
@@ -186,28 +143,19 @@ decision_result_t decide(packet_t *pkt)
         // ALLOW + rate limit
         if (rr.action == RULE_ALLOW) {
 
-            base_decision =
-                DECISION_ACCEPT;
+            base_decision = DECISION_ACCEPT;
 
-            reason =
-                "RULE_ALLOW";
+            reason = "RULE_ALLOW";
         }
     }
 
-    // ============================
     // RATE LIMIT
-    // ============================
 
-    int rl =
-        rate_limit_check(pkt);
+    int rl = rate_limit_check(pkt);
 
     if (rl == RATE_LIMIT_DROP) {
 
-        log_packet(
-            pkt,
-            "RATE_LIMIT",
-            DECISION_DROP
-        );
+        log_packet(pkt, "RATE_LIMIT", DECISION_DROP);
 
         return (decision_result_t){
             DECISION_DROP,
@@ -217,11 +165,7 @@ decision_result_t decide(packet_t *pkt)
 
     if (rl == RATE_LIMIT_ERROR) {
 
-        log_packet(
-            pkt,
-            "RATE_LIMIT_ERROR",
-            DECISION_DROP
-        );
+        log_packet(pkt, "RATE_LIMIT_ERROR", DECISION_DROP);
 
         return (decision_result_t){
             DECISION_DROP,
@@ -229,15 +173,9 @@ decision_result_t decide(packet_t *pkt)
         };
     }
 
-    // ============================
-    // FINAL DECISION
-    // ============================
+    // Decisione
 
-    log_packet(
-        pkt,
-        reason,
-        base_decision
-    );
+    log_packet(pkt, reason, base_decision);
 
     static int counter = 0;
 

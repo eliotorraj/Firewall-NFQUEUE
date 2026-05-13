@@ -37,6 +37,7 @@ static uint32_t mix32(uint32_t x) {
 // WORKFLOW:
 // Questa funzione viene chiamata quando hll_add_ip() riceve l'IP sorgente del pacchetto dal Decision Engine.
 static int hash_ipv4(const char *ip, uint32_t *out_hash) {
+    
     struct in_addr addr;
     uint32_t ip_value;
 
@@ -118,6 +119,7 @@ static int hll_rank_fast(uint32_t value) {
 // Questa funzione va chiamata all'avvio del firewall,
 // idealmente dentro decision_init().
 int  hll_init(void) {
+    
     for (int i = 0; i < HLL_M; i++) {
         registers[i] = 0;
     }
@@ -132,6 +134,7 @@ int  hll_init(void) {
 // Questa funzione viene chiamata all'inizio di decide().
 // Il pacchetto non viene ancora accettato o bloccato: stiamo solo aggiornando le statistiche.
 int  hll_add_ip(const char *src_ip) {
+    
     uint32_t hash;
     uint32_t index;
     uint32_t remaining_bits;
@@ -174,6 +177,7 @@ int  hll_add_ip(const char *src_ip) {
 // Non influisce direttamente su ACCEPT/DROP.
 // Ci restituisce la cardinalità stimata
 int hll_get_cardinality(void) {
+    
     double alpha;
     double sum = 0.0;
     double estimate;

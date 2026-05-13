@@ -26,11 +26,8 @@ static void handle_sigint(int sig) {
 
 // CALLBACK INTERNA NFQUEUE
 
-static int nfqueue_callback(struct nfq_q_handle *qh,
-                       struct nfgenmsg *nfmsg,
-                       struct nfq_data *nfa,
-                       void *data)
-{
+static int nfqueue_callback(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *nfa, void *data){
+    
     (void)nfmsg;
     (void)data;
 
@@ -42,6 +39,7 @@ static int nfqueue_callback(struct nfq_q_handle *qh,
     ph = nfq_get_msg_packet_hdr(nfa);
 
     uint32_t id = 0;
+
     if (ph) {
         id = ntohl(ph->packet_id);
     }
@@ -59,12 +57,14 @@ static int nfqueue_callback(struct nfq_q_handle *qh,
     uint32_t mark = FW_MARK_NONE;
 
     if (user_cb) {
+
         int res = user_cb(payload, payload_len);
 
         if (res == 1) {
             verdict = NF_ACCEPT;
             mark = FW_MARK_PASS;
-        } else {
+        } 
+        else {
             // Il DROP reale viene applicato dalle regole iptables dopo il save-mark.
             verdict = NF_ACCEPT;
             mark = FW_MARK_DROP;
@@ -77,12 +77,13 @@ static int nfqueue_callback(struct nfq_q_handle *qh,
 
 //INIT
 
-int nfqueue_init(packet_handler_cb cb)
-{
+int nfqueue_init(packet_handler_cb cb){
+    
     user_cb = cb;
 
     // Apri handler
     h = nfq_open();
+
     if (!h) {
         fprintf(stderr, "Errore: nfq_open()\n");
         return -1;
@@ -102,6 +103,7 @@ int nfqueue_init(packet_handler_cb cb)
 
     // Crea coda 0
     qh = nfq_create_queue(h, 0, &nfqueue_callback, NULL);
+
     if (!qh) {
         fprintf(stderr, "Errore: nfq_create_queue()\n");
         nfq_close(h);
@@ -124,8 +126,8 @@ int nfqueue_init(packet_handler_cb cb)
 }
 
 //Loop Principale
-void nfqueue_run()
-{
+void nfqueue_run(){
+
     char buffer[4096] __attribute__ ((aligned));
 
     signal(SIGINT, handle_sigint);
@@ -152,8 +154,8 @@ void nfqueue_run()
 }
 
 //CleanUp
-void nfqueue_cleanup()
-{
+void nfqueue_cleanup(){
+    
     if (qh)
         nfq_destroy_queue(qh);
 

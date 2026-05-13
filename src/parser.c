@@ -31,8 +31,8 @@ struct udp_header {
 };
 
 //Parser
-int parse_packet(unsigned char *data, int len, packet_t *pkt)
-{
+int parse_packet(unsigned char *data, int len, packet_t *pkt){
+
     size_t packet_len;
     size_t ip_header_len;
 
@@ -77,11 +77,9 @@ int parse_packet(unsigned char *data, int len, packet_t *pkt)
     src.s_addr = ip->saddr;
     dst.s_addr = ip->daddr;
 
-    if (inet_ntop(AF_INET, &src, pkt->src_ip, sizeof(pkt->src_ip)) == NULL)
-        return 0;
+    if (inet_ntop(AF_INET, &src, pkt->src_ip, sizeof(pkt->src_ip)) == NULL) return 0;
 
-    if (inet_ntop(AF_INET, &dst, pkt->dst_ip, sizeof(pkt->dst_ip)) == NULL)
-        return 0;
+    if (inet_ntop(AF_INET, &dst, pkt->dst_ip, sizeof(pkt->dst_ip)) == NULL) return 0;
 
     pkt->protocol = ip->protocol;
 
@@ -91,8 +89,8 @@ int parse_packet(unsigned char *data, int len, packet_t *pkt)
 
     // TCP
     if (ip->protocol == 6) {
-        if (packet_len < ip_header_len + sizeof(struct tcp_header))
-            return 0;
+
+        if (packet_len < ip_header_len + sizeof(struct tcp_header)) return 0;
 
         struct tcp_header *tcp = (struct tcp_header *)(data + ip_header_len);
 
@@ -102,8 +100,8 @@ int parse_packet(unsigned char *data, int len, packet_t *pkt)
 
     // UDP
     else if (ip->protocol == 17) {
-        if (packet_len < ip_header_len + sizeof(struct udp_header))
-            return 0;
+        
+        if (packet_len < ip_header_len + sizeof(struct udp_header)) return 0;
 
         struct udp_header *udp = (struct udp_header *)(data + ip_header_len);
 
