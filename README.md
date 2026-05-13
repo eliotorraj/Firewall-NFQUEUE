@@ -26,7 +26,7 @@ cd ~/NFQUEUE_UserSpace_Firewall
 make firewall
 ```
 
-Il binario generato e' `./firewall`.
+Il binario generato è `./firewall`.
 
 ## Configurazione Regole
 
@@ -56,7 +56,7 @@ DROP ANY ANY ANY ANY UDP
 ALLOW ANY ANY ANY 80 TCP
 ```
 
-Le regole vengono valutate in ordine: la prima regola che matcha decide. Per questo i `DROP` piu' specifici devono stare prima degli `ALLOW` generici.
+Le regole vengono valutate in ordine: la prima regola che matcha decide. Per questo i `DROP` più specifici devono stare prima degli `ALLOW` generici.
 
 ## Test Automatici
 
@@ -69,18 +69,11 @@ I test controllano:
 - parsing pacchetti IPv4/TCP
 - rigetto di pacchetti malformati
 - caricamento regole da `firewall.conf`
-- priorita' dei `DROP`
+- priorità dei `DROP`
 - default policy
 - rate limit
 - HyperLogLog
 - integrazione `main -> parser -> decision engine`
-
-Risultato atteso:
-
-```text
-Assertions: 268
-Result: PASSED
-```
 
 ## Avvio Naturale Del Firewall
 
@@ -96,9 +89,13 @@ Terminale 2, abilita le regole iptables con mark/CONNMARK:
 
 ```bash
 cd ~/NFQUEUE_UserSpace_Firewall
+sudo ./scripts/fw_mark_setup.sh [PORTA_1] [PORTA_2] ... [PORTA_N]
+```
+Esempio:
+```text
+cd ~/NFQUEUE_UserSpace_Firewall
 sudo ./scripts/fw_mark_setup.sh 80 23
 ```
-
 Questo manda a NFQUEUE solo il traffico TCP verso `127.0.0.1` sulle porte `80` e `23`.
 
 Per vedere regole e contatori:
@@ -122,14 +119,8 @@ make firewall
 sudo ./scripts/fw_mark_smoke_test.sh
 ```
 
-Nel log dovresti vedere almeno:
 
-```text
-DPORT=80 PROTO=6 DECISION=ACCEPT REASON=RULE_ALLOW
-DPORT=23 PROTO=6 DECISION=DROP REASON=RULE_DROP
-```
-
-Nota: sui SYN droppati verso porta `23`, alcune ritrasmissioni possono comunque tornare in NFQUEUE perche' il flusso TCP non viene confermato in conntrack. Per i flussi accettati, invece, il riuso del `CONNMARK` e' visibile nei contatori.
+Nota: sui SYN droppati verso porta `23`, alcune ritrasmissioni possono comunque tornare in NFQUEUE perché il flusso TCP non viene confermato in conntrack. Per i flussi accettati, invece, il riuso del `CONNMARK` è visibile nei contatori.
 
 ## Packet Mark E CONNMARK
 
@@ -140,7 +131,7 @@ FW_MARK_PASS = 0x1
 FW_MARK_DROP = 0x2
 ```
 
-Il flusso e':
+Il flusso è:
 
 ```text
 OUTPUT -> FW_OUTPUT
@@ -154,7 +145,7 @@ mark 0x2 -> DROP
 mark 0x1 -> ACCEPT
 ```
 
-Il programma C non usa `NF_DROP` diretto per i pacchetti droppati logicamente. Restituisce `NF_ACCEPT` con `FW_MARK_DROP`, cosi' iptables puo' salvare il mark nel conntrack e poi droppare il pacchetto.
+Il programma C non usa `NF_DROP` diretto per i pacchetti droppati logicamente. Restituisce `NF_ACCEPT` con `FW_MARK_DROP`, così iptables può salvare il mark nel conntrack e poi droppare il pacchetto.
 
 ## Debug Rapido
 
@@ -180,19 +171,6 @@ sudo ./scripts/fw_mark_cleanup.sh
 Se la shell si blocca dopo una regola NFQUEUE, apri un nuovo terminale e pulisci:
 
 ```bash
-wsl -d Ubuntu --user root -- bash -lc "cd /home/elioe/NFQUEUE_UserSpace_Firewall && ./scripts/fw_mark_cleanup.sh"
+wsl -d Ubuntu --user root -- bash -lc "cd /PATH_PROGETTO && ./scripts/fw_mark_cleanup.sh"
 ```
 
-## File Principali
-
-```text
-src/main.c             avvio, caricamento regole, init NFQUEUE
-src/nfqueue_core.c     callback NFQUEUE, verdict e packet mark
-src/parser.c           parser IPv4/TCP/UDP/ICMP
-src/decision.c         workflow HLL -> regole -> rate limit -> default policy
-src/rules.c            caricamento e matching regole da firewall.conf
-src/rate_limit.c       Leaky Bucket per IP sorgente
-src/hyperloglog.c      stima IP sorgenti unici
-scripts/               setup/status/cleanup/smoke test iptables mark
-tests/test_firewall.c  test automatici
-```
