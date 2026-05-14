@@ -33,7 +33,7 @@ typedef struct {
     int used;                // 1 se questo slot è occupato
 } bucket_t;
 
-// API MODULO 4
+// API
 
 // Inizializza la tabella dei bucket.
 int rate_limit_init(void);
