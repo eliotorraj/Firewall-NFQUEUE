@@ -13,8 +13,6 @@
 #define HLL_P 10
 #define HLL_M (1 << HLL_P)
 
-// API MODULO 5
-
 // Inizializza i registri HyperLogLog.
 int  hll_init(void);
 
