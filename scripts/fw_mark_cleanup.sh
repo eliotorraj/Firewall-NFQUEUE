@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -u
 
-# Rimuove solo le chain create dai nostri script mark.
-# Non fa flush globale della tabella mangle, cosi' e' piu' sicuro su una macchina
-# dove potrebbero esserci altre regole iptables non collegate al progetto.
+# Removes only the chains created by our mark scripts.
+# It does not globally flush the mangle table, making it safer on a machine
+# that may have other iptables rules unrelated to the project.
 
-# Permette override, ad esempio:
+# Allows overrides, for example:
 #   IPTABLES=iptables-legacy sudo ./scripts/fw_mark_cleanup.sh
 IPTABLES=${IPTABLES:-iptables}
 
@@ -19,34 +19,34 @@ delete_jumps_to() {
     local target=$2
     local rules
 
-    # Una chain custom non si puo' cancellare finche' una chain built-in
-    # ci salta dentro. Qui cerchiamo tutte le regole tipo:
+    # A custom chain cannot be deleted while a built-in chain
+    # jumps into it. Here we look for all rules like:
     #   -A OUTPUT ... -j FW_OUTPUT
-    # e le convertiamo in:
+    # and convert them into:
     #   -D OUTPUT ... -j FW_OUTPUT
-    # Ripetiamo in loop per gestire eventuali duplicati.
+    # Repeat in a loop to handle any duplicates.
     while true; do
         mapfile -t rules < <("$IPTABLES" -t mangle -S "$chain" 2>/dev/null | grep -- " -j $target")
         [ "${#rules[@]}" -eq 0 ] && break
 
         for rule in "${rules[@]}"; do
-            # Qui vogliamo volutamente espandere la regola in argomenti iptables.
+            # Here we deliberately expand the rule into iptables arguments.
             # shellcheck disable=SC2086
             "$IPTABLES" -t mangle ${rule/-A /-D }
         done
     done
 }
 
-# Scollega prima le chain custom dai punti di ingresso del kernel.
+# First detach the custom chains from the kernel entry points.
 delete_jumps_to OUTPUT FW_OUTPUT
 delete_jumps_to POSTROUTING FW_POSTROUTING
 
-# Poi svuota e cancella le chain. Gli errori sono ignorati per rendere
-# lo script idempotente: puoi lanciarlo anche se le chain non esistono.
+# Then flush and delete the chains. Errors are ignored to keep
+# the script idempotent: it can be run even if the chains do not exist.
 "$IPTABLES" -t mangle -F FW_OUTPUT 2>/dev/null || true
 "$IPTABLES" -t mangle -F FW_POSTROUTING 2>/dev/null || true
 "$IPTABLES" -t mangle -X FW_OUTPUT 2>/dev/null || true
 "$IPTABLES" -t mangle -X FW_POSTROUTING 2>/dev/null || true
 
-# Stato finale: se tutto e' pulito dovresti vedere solo le policy built-in.
+# Final state: if everything is clean, you should see only the built-in policies.
 "$IPTABLES" -t mangle -S

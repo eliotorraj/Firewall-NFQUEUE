@@ -4,42 +4,42 @@
 #include <time.h>
 #include "packet.h"
 
-// COSTANTI LEAKY BUCKET
+// LEAKY BUCKET CONSTANTS
 
-// Numero massimo di IP sorgenti tracciabili.
+// Maximum number of trackable source IP addresses.
 #define MAX_BUCKETS 1024
 
-// Soglia massima del bucket.
-// Se un IP supera questo valore, viene bloccato.
+// Maximum bucket threshold.
+// If an IP address exceeds this value, it is blocked.
 #define RATE_LIMIT_MAX_TOKENS 10
 
-// Velocità con cui il bucket si svuota.
-// Qui: 1 token rimosso al secondo.
+// Rate at which the bucket drains.
+// Here: 1 token removed per second.
 #define RATE_LIMIT_LEAK_RATE 1
 
 #define RATE_LIMIT_OK     0
 #define RATE_LIMIT_DROP   1
 #define RATE_LIMIT_ERROR -1
 
-// STRUTTURA BUCKET
+// BUCKET STRUCTURE
 
-// Ogni IP sorgente ha un bucket.
-// Più pacchetti manda, più tokens accumula.
-// Col tempo i tokens diminuiscono.
+// Each source IP address has a bucket.
+// The more packets it sends, the more tokens it accumulates.
+// Over time, tokens decrease.
 typedef struct {
-    char ip[16];             // IP sorgente associato al bucket
-    int tokens;              // livello attuale del bucket
-    time_t last_update;      // ultimo momento in cui il bucket è stato aggiornato
-    int used;                // 1 se questo slot è occupato
+    char ip[16];             // source IP associated with the bucket
+    int tokens;              // current bucket level
+    time_t last_update;      // last time the bucket was updated
+    int used;                // 1 if this slot is occupied
 } bucket_t;
 
 // API
 
-// Inizializza la tabella dei bucket.
+// Initializes the bucket table.
 int rate_limit_init(void);
 
-// Controlla se un pacchetto supera il rate limit.
-// Ritorna 1 se va bloccato, 0 se può continuare.
+// Checks whether a packet exceeds the rate limit.
+// Returns 1 if it must be blocked, 0 if it can continue.
 int rate_limit_check(packet_t *pkt);
 const char *rate_limit_last_error(void);
 

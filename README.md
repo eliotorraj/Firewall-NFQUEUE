@@ -1,80 +1,80 @@
-# Firewall Userspace con NFQUEUE
+# Userspace Firewall with NFQUEUE
 
-## Introduzione
+## Introduction
 
-Il progetto consiste nello sviluppo di un firewall userspace in linguaggio C per sistemi Linux, basato sul sottosistema NFQUEUE di Netfilter.
-L’obiettivo è intercettare pacchetti IP selezionati dal kernel, analizzarli in spazio utente e applicare politiche di filtraggio personalizzate.
+This project implements a userspace firewall in C for Linux systems, based on the Netfilter NFQUEUE subsystem.
+Its goal is to intercept IP packets selected by the kernel, analyze them in userspace, and apply custom filtering policies.
 
-Oltre al filtraggio tradizionale, il firewall integra due meccanismi di analisi del traffico:
+In addition to traditional filtering, the firewall integrates two traffic analysis mechanisms:
 
-* un sistema di rate limiting basato su algoritmo Leaky Bucket;
-* una stima del numero di IP sorgenti distinti tramite HyperLogLog.
+* a rate limiting system based on the Leaky Bucket algorithm;
+* an estimate of the number of distinct source IP addresses using HyperLogLog.
 
 ---
 
-# Architettura del Sistema
+# System Architecture
 
-Il firewall è suddiviso nei seguenti moduli principali:
+The firewall is divided into the following main modules:
 
-| Modulo         | Funzione                                         |
+| Module         | Purpose                                          |
 | -------------- | ------------------------------------------------ |
-| `nfqueue_core` | Gestione della comunicazione con NFQUEUE         |
-| `parser`       | Estrazione delle informazioni dai pacchetti IPv4 |
-| `rules`        | Caricamento e verifica delle regole firewall     |
-| `decision`     | Decision engine del firewall                     |
-| `rate_limit`   | Controllo del traffico tramite Leaky Bucket      |
-| `hyperloglog`  | Stima degli IP sorgenti distinti                 |
-| `logging`      | Registrazione di eventi e decisioni              |
+| `nfqueue_core` | NFQUEUE communication handling                   |
+| `parser`       | Extraction of information from IPv4 packets      |
+| `rules`        | Loading and checking firewall rules              |
+| `decision`     | Firewall decision engine                         |
+| `rate_limit`   | Traffic control through Leaky Bucket             |
+| `hyperloglog`  | Estimation of distinct source IP addresses       |
+| `logging`      | Recording of events and decisions                |
 
-Flusso di elaborazione:
+Processing flow:
 
-1. Il kernel inoltra i pacchetti selezionati a una coda NFQUEUE.
-2. Il firewall riceve il pacchetto in userspace.
-3. Il parser estrae le informazioni rilevanti:
+1. The kernel forwards selected packets to an NFQUEUE queue.
+2. The firewall receives the packet in userspace.
+3. The parser extracts the relevant information:
 
-   * IP sorgente e destinazione;
-   * protocollo;
-   * porte TCP/UDP.
+   * source and destination IP addresses;
+   * protocol;
+   * TCP/UDP ports.
    
-4. Il decision engine:
+4. The decision engine:
 
-   * aggiorna le statistiche HyperLogLog;
-   * verifica eventuali limiti di traffico;
-   * applica le regole firewall;
-   * produce il verdetto finale.
+   * updates HyperLogLog statistics;
+   * checks traffic limits;
+   * applies firewall rules;
+   * produces the final verdict.
    
-5. Il risultato viene restituito al kernel.
+5. The result is returned to the kernel.
 
-Questa struttura rende il progetto più semplice da estendere e facilita la separazione delle responsabilità tra i moduli.
+This structure makes the project easier to extend and keeps responsibilities clearly separated across modules.
 
 ---
 
-# Utilizzo di NFQUEUE
+# Using NFQUEUE
 
-NFQUEUE è un componente di Netfilter che consente di trasferire pacchetti dal kernel allo spazio utente.
-In questo progetto viene utilizzato per delegare al firewall userspace la decisione finale sui pacchetti intercettati.
+NFQUEUE is a Netfilter component that allows packets to be transferred from the kernel to userspace.
+In this project it is used to delegate the final decision on intercepted packets to the userspace firewall.
 
-Le regole `iptables` indirizzano verso la queue `0` solo il traffico di interesse.
+The `iptables` rules send only the traffic of interest to queue `0`.
 
-Esempio:
+Example:
 
 ```bash
 iptables -t mangle -A OUTPUT -p tcp --dport 80 -j NFQUEUE --queue-num 0
 ```
 
-In questo modo soltanto il traffico TCP destinato alla porta 80 viene analizzato dal firewall.
+This way, only TCP traffic destined for port 80 is analyzed by the firewall.
 
 ---
 
-# Parsing dei Pacchetti
+# Packet Parsing
 
-Il modulo `parser` analizza pacchetti IPv4 e supporta i protocolli:
+The `parser` module analyzes IPv4 packets and supports the following protocols:
 
 * TCP
 * UDP
 * ICMP
 
-Le informazioni estratte vengono salvate nella struttura condivisa:
+The extracted information is stored in the shared structure:
 
 ```
 struct packet_info {
@@ -86,92 +86,92 @@ struct packet_info {
 };
 ```
 
-Durante il parsing vengono effettuati controlli di validità sugli header IPv4 e TCP/UDP.
-I pacchetti malformati vengono scartati prima di raggiungere il decision engine.
+During parsing, validity checks are performed on the IPv4 and TCP/UDP headers.
+Malformed packets are discarded before reaching the decision engine.
 
 ---
 
-# Gestione delle Regole
+# Rule Management
 
-Le regole firewall sono definite nel file `firewall.conf` con il formato:
+Firewall rules are defined in the `firewall.conf` file using this format:
 
 ```text
 ACTION SRC_IP DST_IP SRC_PORT DST_PORT PROTOCOL
 ```
 
-Esempio:
+Example:
 
 ```text
 DROP ANY ANY ANY 23 TCP
 ALLOW ANY ANY ANY 80 TCP
 ```
 
-Le regole vengono valutate in ordine sequenziale.
-La prima regola che produce match determina la decisione finale.
+Rules are evaluated sequentially.
+The first matching rule determines the final decision.
 
-Sono supportati:
+Supported values:
 
-* indirizzi IPv4 specifici;
+* specific IPv4 addresses;
 * wildcard `ANY`;
-* protocolli TCP, UDP e ICMP.
+* TCP, UDP, and ICMP protocols.
 
 ---
 
-# Rate Limiting con Leaky Bucket
+# Rate Limiting with Leaky Bucket
 
-Per limitare possibili attacchi flood, il progetto implementa un sistema di rate limiting basato su algoritmo Leaky Bucket.
+To limit possible flood attacks, the project implements a rate limiting system based on the Leaky Bucket algorithm.
 
-Per ogni IP sorgente vengono mantenuti:
+For each source IP address, the firewall keeps:
 
-* numero di richieste accumulate;
-* timestamp dell’ultimo aggiornamento.
+* the number of accumulated requests;
+* the timestamp of the last update.
 
-Quando il traffico supera la soglia configurata, il pacchetto può essere classificato come sospetto e gestito dal decision engine.
+When traffic exceeds the configured threshold, the packet can be classified as suspicious and handled by the decision engine.
 
-Questo approccio consente di limitare traffico anomalo senza bloccare immediatamente connessioni legittime.
-
----
-
-# Stima degli IP con HyperLogLog
-
-Il modulo `hyperloglog` viene utilizzato per stimare il numero di indirizzi IP sorgenti distinti osservati dal firewall.
-
-HyperLogLog è una struttura probabilistica che permette di ottenere una stima della cardinalità utilizzando poca memoria.
-
-Nel progetto:
-
-* ogni IP sorgente viene convertito in un hash;
-* l’hash aggiorna uno specifico registro della struttura;
-* la cardinalità stimata viene calcolata periodicamente dal decision engine.
-
-Questo approccio consente di monitorare il traffico in modo efficiente anche con un numero elevato di host.
+This approach makes it possible to limit anomalous traffic without immediately blocking legitimate connections.
 
 ---
 
-# Packet Mark e CONNMARK
+# IP Estimation with HyperLogLog
 
-Il firewall utilizza i packet mark di Netfilter per associare una decisione ai flussi già analizzati.
+The `hyperloglog` module is used to estimate the number of distinct source IP addresses observed by the firewall.
 
-Sono definiti due mark principali:
+HyperLogLog is a probabilistic data structure that estimates cardinality while using little memory.
+
+In this project:
+
+* each source IP address is converted into a hash;
+* the hash updates a specific register in the structure;
+* the estimated cardinality is computed periodically by the decision engine.
+
+This approach makes it possible to monitor traffic efficiently even with a large number of hosts.
+
+---
+
+# Packet Marks and CONNMARK
+
+The firewall uses Netfilter packet marks to associate a decision with flows that have already been analyzed.
+
+Two main marks are defined:
 
 ```text
 FW_MARK_PASS = 0x1
 FW_MARK_DROP = 0x2
 ```
 
-Il funzionamento è il seguente:
+The mechanism works as follows:
 
-1. un pacchetto privo di mark entra in NFQUEUE;
-2. il firewall decide se consentire o bloccare il traffico;
-3. il mark viene salvato nel conntrack tramite `CONNMARK`;
-4. i pacchetti successivi dello stesso flusso vengono gestiti direttamente dal kernel.
+1. an unmarked packet enters NFQUEUE;
+2. the firewall decides whether to allow or block the traffic;
+3. the mark is saved in conntrack through `CONNMARK`;
+4. subsequent packets from the same flow are handled directly by the kernel.
 
-Questo meccanismo riduce il numero di pacchetti inviati in userspace e diminuisce l’overhead complessivo del firewall.
+This mechanism reduces the number of packets sent to userspace and lowers the firewall's overall overhead.
 
 ---
-## Requisiti
+## Requirements
 
-Su Ubuntu/WSL:
+On Ubuntu/WSL:
 
 ```bash
 sudo apt update
@@ -180,41 +180,41 @@ sudo apt install build-essential libnetfilter-queue-dev iptables netcat-openbsd 
 
 ---
 
-# Compilazione ed Esecuzione
+# Build and Run
 
-Per compilare il progetto:
+To build the project:
 
 ```bash
 make firewall
 ```
 
-Il programma deve essere eseguito con privilegi root:
+The program must be run with root privileges:
 
 ```bash
 sudo ./firewall
 ```
 
-Per intercettare il traffico è necessario installare le regole `iptables` fornite dagli script del progetto.
+To intercept traffic, install the `iptables` rules provided by the project scripts.
 
-Esempio:
+Example:
 
 ```bash
 sudo ./scripts/fw_mark_setup.sh 80 23
 ```
 
-Lo script configura:
+The script configures:
 
-* regole NFQUEUE;
-* packet mark e CONNMARK;
-* catene `mangle` necessarie al test.
+* NFQUEUE rules;
+* packet marks and CONNMARK;
+* the `mangle` chains required by the test.
 
-Per visualizzare regole e contatori:
+To view rules and counters:
 
 ```bash
 sudo ./scripts/fw_mark_status.sh
 ```
 
-Per rimuovere tutte le regole create:
+To remove all created rules:
 
 ```bash
 sudo ./scripts/fw_mark_cleanup.sh
@@ -224,43 +224,43 @@ sudo ./scripts/fw_mark_cleanup.sh
 
 # Testing
 
-Il progetto include uno smoke test automatico:
+The project includes an automated smoke test:
 
 ```bash
 make firewall
 sudo ./scripts/fw_mark_smoke_test.sh
 ```
 
-Lo script:
+The script:
 
-1. avvia il firewall;
-2. configura automaticamente le regole `iptables`;
-3. crea un server HTTP locale sulla porta 80;
-4. genera traffico reale verso le porte 80 e 23;
-5. verifica il corretto comportamento del firewall.
+1. starts the firewall;
+2. automatically configures the `iptables` rules;
+3. creates a local HTTP server on port 80;
+4. generates real traffic toward ports 80 and 23;
+5. verifies the firewall's expected behavior.
 
-In particolare:
+Specifically:
 
-* il traffico HTTP verso porta 80 deve essere accettato;
-* il traffico Telnet verso porta 23 deve essere bloccato.
+* HTTP traffic toward port 80 must be accepted;
+* Telnet traffic toward port 23 must be blocked.
 
-Al termine vengono mostrati:
+At the end, the script shows:
 
-* log del firewall;
-* contatori delle regole;
-* stato dei mark Netfilter.
+* firewall logs;
+* rule counters;
+* Netfilter mark status.
 
 ---
 
 # Debug
 
-Per visualizzare le regole `mangle`:
+To view the `mangle` rules:
 
 ```bash
 sudo iptables -t mangle -S
 ```
 
-Per visualizzare i contatori delle chain:
+To view chain counters:
 
 ```bash
 sudo iptables -t mangle -L FW_OUTPUT -v -n --line-numbers
@@ -268,9 +268,8 @@ sudo iptables -t mangle -L FW_POSTROUTING -v -n --line-numbers
 ```
 ---
 
-# Autori
+# Authors
 
 * Federico Guastella
 * Marco Tavani
 * Elio Torraj
-

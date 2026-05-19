@@ -3,13 +3,13 @@
 
 #include <stdint.h>
 
-// Packet mark usati insieme a iptables CONNMARK.
+// Packet marks used with iptables CONNMARK.
 #define FW_MARK_NONE 0x0
 #define FW_MARK_PASS 0x1
 #define FW_MARK_DROP 0x2
 
-// CALLBACK DEFINITA DAL LIVELLO SUPERIORE
-// Ritorna:
+// CALLBACK DEFINED BY THE UPPER LAYER
+// Returns:
 // 1 = ACCEPT
 // 0 = DROP
 
@@ -18,13 +18,13 @@ typedef int (*packet_handler_cb)(
     int len
 );
 
-// Inizializza NFQUEUE e registra callback
+// Initializes NFQUEUE and registers the callback.
 int nfqueue_init(packet_handler_cb cb);
 
-// Loop principale (blocking)
+// Main loop (blocking).
 void nfqueue_run();
 
-// Cleanup risorse
+// Resource cleanup.
 void nfqueue_cleanup();
 
 #endif

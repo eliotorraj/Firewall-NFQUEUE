@@ -115,7 +115,7 @@ static int match_protocol(int rule_proto, int pkt_proto){
     return rule_proto == pkt_proto;
 }
 
-// Cerca corrispondenza con le regole del file .conf
+// Look for a match against the rules from the .conf file.
 
 static int match_rule(packet_t *pkt, rule_t *r){
 
@@ -125,7 +125,7 @@ static int match_rule(packet_t *pkt, rule_t *r){
 
     if (!match_protocol(r->protocol, pkt->protocol)) return 0;
 
-    // ICMP non usa porte
+    // ICMP does not use ports.
     if (pkt->protocol != 1) {
 
         if (!match_port(r->src_port, pkt->src_port)) return 0;
@@ -155,7 +155,7 @@ int rules_init(const char *config_file){
 
     while (fgets(line, sizeof(line), fp)) {
 
-        // Salta commenti e righe vuote, anche con spazi iniziali.
+        // Skip comments and blank lines, including those with leading spaces.
         if (is_comment_or_blank(line))
             continue;
 
@@ -178,12 +178,12 @@ int rules_init(const char *config_file){
         );
 
         if (fields != 6) {
-            fprintf(stderr, "Regola invalida: %s", line);
+            fprintf(stderr, "Invalid rule: %s", line);
             continue;
         }
 
         if (rules_count >= MAX_RULES) {
-            fprintf(stderr, "MAX_RULES raggiunto\n");
+            fprintf(stderr, "MAX_RULES reached\n");
             break;
         }
 
@@ -194,23 +194,23 @@ int rules_init(const char *config_file){
         int protocol_value;
 
         if (!valid_ip_or_any(src_ip) || !valid_ip_or_any(dst_ip)) {
-            fprintf(stderr, "IP non valido nella regola: %s", line);
+            fprintf(stderr, "Invalid IP in rule: %s", line);
             continue;
         }
 
         if (parse_action(action, &action_value) != RULES_OK) {
-            fprintf(stderr, "Azione non valida nella regola: %s", line);
+            fprintf(stderr, "Invalid action in rule: %s", line);
             continue;
         }
 
         if (parse_port(src_port, &src_port_value) != RULES_OK ||
             parse_port(dst_port, &dst_port_value) != RULES_OK) {
-            fprintf(stderr, "Porta non valida nella regola: %s", line);
+            fprintf(stderr, "Invalid port in rule: %s", line);
             continue;
         }
 
         if (parse_protocol(proto, &protocol_value) != RULES_OK) {
-            fprintf(stderr, "Protocollo non valido nella regola: %s", line);
+            fprintf(stderr, "Invalid protocol in rule: %s", line);
             continue;
         }
 
@@ -232,7 +232,7 @@ int rules_init(const char *config_file){
 
     fclose(fp);
 
-    printf("[RULES] Caricate %d regole da %s\n", rules_count, config_file);
+    printf("[RULES] Loaded %d rules from %s\n", rules_count, config_file);
 
     return RULES_OK;
 }

@@ -39,7 +39,7 @@ void decision_cleanup(void)
     }
 }
 
-// LOG PACCHETTO
+// LOG PACKET
 
 static void log_packet(packet_t *pkt, const char *reason, int decision){
     
@@ -129,7 +129,7 @@ decision_result_t decide(packet_t *pkt){
 
     if (rr.matched) {
 
-        // DROP immediato
+        // Immediate DROP
         if (rr.action == RULE_DROP) {
 
             log_packet(pkt, "RULE_DROP", DECISION_DROP);
@@ -173,7 +173,7 @@ decision_result_t decide(packet_t *pkt){
         };
     }
 
-    // Decisione
+    // Decision
 
     log_packet(pkt, reason, base_decision);
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -u
 
-# Stampa regole e contatori della tabella mangle.
-# E' lo script da usare dopo ogni prova per capire il flow:
-# - FW_OUTPUT / NFQUEUE indica quanti pacchetti sono entrati in userspace.
-# - FW_OUTPUT / mark 0x1 o 0x2 indica quanti pacchetti sono stati gestiti
-#   usando una decisione gia' salvata nel CONNMARK.
-# - FW_POSTROUTING / CONNMARK save indica quanti packet mark sono stati
-#   salvati nelle entry conntrack.
+# Prints rules and counters from the mangle table.
+# Use this script after each test to understand the flow:
+# - FW_OUTPUT / NFQUEUE shows how many packets entered userspace.
+# - FW_OUTPUT / mark 0x1 or 0x2 shows how many packets were handled
+#   using a decision already saved in CONNMARK.
+# - FW_POSTROUTING / CONNMARK save shows how many packet marks were
+#   saved in conntrack entries.
 
 IPTABLES=${IPTABLES:-iptables}
 
@@ -17,15 +17,15 @@ if [ "${EUID}" -ne 0 ]; then
 fi
 
 echo "=== mangle rules ==="
-# Forma compatta, utile per capire esattamente come ricreare/rimuovere regole.
+# Compact form, useful for understanding exactly how to recreate/remove rules.
 "$IPTABLES" -t mangle -S
 
 echo
 echo "=== FW_OUTPUT counters ==="
-# Contatori della chain dove avviene il restore-mark e l'eventuale salto NFQUEUE.
+# Counters for the chain where restore-mark and the possible NFQUEUE jump happen.
 "$IPTABLES" -t mangle -L FW_OUTPUT -v -n --line-numbers 2>/dev/null || true
 
 echo
 echo "=== FW_POSTROUTING counters ==="
-# Contatori della chain dove salviamo il mark e applichiamo il verdetto finale.
+# Counters for the chain where the mark is saved and the final verdict is applied.
 "$IPTABLES" -t mangle -L FW_POSTROUTING -v -n --line-numbers 2>/dev/null || true

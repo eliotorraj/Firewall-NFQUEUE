@@ -5,12 +5,12 @@
 // STORAGE BUCKET
 
 // WORKFLOW:
-// Questa tabella vive per tutta l'esecuzione del firewall.
-// Serve a ricordare il traffico recente di ogni IP sorgente.
+// This table lives for the entire firewall execution.
+// It stores recent traffic for each source IP address.
 static bucket_t buckets[MAX_BUCKETS];
 
 
-//Mi segno l'ultimo errore in una stringa, così da sapere la causa di un eventuale errore
+// Store the last error in a string, so the cause of a possible error is available.
 static const char *last_error = "no error";
 
 const char *rate_limit_last_error(void) {
@@ -19,14 +19,15 @@ const char *rate_limit_last_error(void) {
 
 // HASH IP
 
-// Trasforma una stringa IP in un numero.
-// Serve per scegliere rapidamente una posizione nella tabella.
-// Hash: djb2, creata da Dan Bernstein
+// Converts an IP string into a number.
+// Used to quickly choose a position in the table.
+// Hash: djb2, created by Dan Bernstein.
 static unsigned int hash_ip(const char *ip) {
-    //5381 è un numero primo con ottime proprietà statistiche per ridurre le collisioni iniziali
+    // 5381 is a prime number with good statistical properties for reducing initial collisions.
     unsigned int hash = 5381;
 
-    //facnedo <<5 è come fare *33, e questo fa in modo di spalmare bene le stringhe, in modo tale che stringhe simili finiscano in punti distanti dalla tabella
+    // Using << 5 is equivalent to multiplying by 32; adding hash gives *33,
+    // which spreads similar strings across distant points in the table.
     while (*ip != '\0') {
         hash = ((hash << 5) + hash) + (unsigned char)(*ip);
         ip++;
@@ -38,8 +39,8 @@ static unsigned int hash_ip(const char *ip) {
 // INIT
 
 // WORKFLOW:
-// Questa funzione va chiamata all'avvio del programma,
-// idealmente dentro decision_init().
+// This function must be called when the program starts,
+// ideally inside decision_init().
 int rate_limit_init(void) {
 
     time_t now = time(NULL);
@@ -60,18 +61,18 @@ int rate_limit_init(void) {
     return RATE_LIMIT_OK;
 }
 
-// CERCA O CREA BUCKET
+// FIND OR CREATE BUCKET
 
 // WORKFLOW:
-// Quando arriva un pacchetto, dobbiamo trovare il bucket
-// associato al suo IP sorgente.
-// Se non esiste ancora, lo creiamo.
+// When a packet arrives, we need to find the bucket
+// associated with its source IP address.
+// If it does not exist yet, we create it.
 static bucket_t *find_or_create_bucket(const char *ip) {
 
     unsigned int index = hash_ip(ip) % MAX_BUCKETS;
     unsigned int start = index;
 
-    // Se la posizione è occupata da un altro IP, proviamo la posizione successiva.
+    // If the position is occupied by another IP, try the next position.
     while (buckets[index].used) {
 
         if (strcmp(buckets[index].ip, ip) == 0) {
@@ -80,13 +81,13 @@ static bucket_t *find_or_create_bucket(const char *ip) {
 
         index = (index + 1) % MAX_BUCKETS;
 
-        // Se torniamo al punto di partenza, la tabella è piena.
+        // If we return to the starting point, the table is full.
         if (index == start) {
             return NULL;
         }
     }
 
-    // Creazione nuovo bucket.
+    // Create a new bucket.
     buckets[index].used = 1;
     strncpy(buckets[index].ip, ip, 15);
     buckets[index].ip[15] = '\0';
@@ -99,13 +100,13 @@ static bucket_t *find_or_create_bucket(const char *ip) {
 // CORE RATE LIMITING
 
 // WORKFLOW:
-// Questa funzione viene chiamata dal Decision Engine
-// dopo il controllo delle regole statiche.
+// This function is called by the Decision Engine
+// after static rules have been checked.
 //
-// Logica:
-// - ogni pacchetto aumenta il livello del bucket
-// - il tempo fa diminuire il livello del bucket
-// - se il livello supera la soglia, il pacchetto viene droppato
+// Logic:
+// - each packet increases the bucket level
+// - time decreases the bucket level
+// - if the level exceeds the threshold, the packet is dropped
 int rate_limit_check(packet_t *pkt) {
 
     bucket_t *bucket;
@@ -124,11 +125,11 @@ int rate_limit_check(packet_t *pkt) {
         return RATE_LIMIT_ERROR;
     }
 
-    // Trova il bucket relativo all'IP sorgente del pacchetto.
+    // Find the bucket for the packet's source IP address.
     bucket = find_or_create_bucket(pkt->src_ip);
 
     if (bucket == NULL) {
-        // Se non possiamo tracciare altri IP, scelta conservativa: blocchiamo il pacchetto.
+        // If no more IP addresses can be tracked, use a conservative choice: block the packet.
         last_error = "bucket table full";
         return RATE_LIMIT_ERROR;
     }
@@ -146,7 +147,7 @@ int rate_limit_check(packet_t *pkt) {
         elapsed = 0;
     }
 
-    // Se è passato tempo dall'ultimo pacchetto, il bucket si svuota.
+    // If time has passed since the last packet, the bucket drains.
     if (elapsed > 0) {
         
         leaked_tokens = elapsed * RATE_LIMIT_LEAK_RATE;
@@ -160,10 +161,10 @@ int rate_limit_check(packet_t *pkt) {
         bucket->last_update = now;
     }
 
-    // Il pacchetto corrente aumenta il livello del bucket.
+    // The current packet increases the bucket level.
     bucket->tokens++;
 
-    // Se il bucket supera la soglia, l'IP sta inviando troppo traffico.
+    // If the bucket exceeds the threshold, the IP address is sending too much traffic.
     if (bucket->tokens > RATE_LIMIT_MAX_TOKENS) {
         last_error = "rate limit exceeded";
         return RATE_LIMIT_DROP;

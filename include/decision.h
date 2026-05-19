@@ -5,12 +5,12 @@
 #include "rate_limit.h"
 #include "hyperloglog.h"
 
-// COSTANTI
+// CONSTANTS
 
 #define DECISION_ACCEPT 1
 #define DECISION_DROP   0
 
-// RISULTATO
+// RESULT
 
 typedef struct {
     int decision;

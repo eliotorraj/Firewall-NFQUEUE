@@ -13,7 +13,7 @@ int handle_packet(unsigned char *data, int len){
 
     if (parse_packet(data, len, &pkt) == 0) {
 
-        fprintf(stderr, "Errore parsing pacchetto\n");
+        fprintf(stderr, "Packet parsing error\n");
 
         return 1;
     }
@@ -35,21 +35,21 @@ int handle_packet(unsigned char *data, int len){
 
 int main()
 {
-    // Carica regole da file
+    // Load rules from file
     if (rules_init("firewall.conf") != 0) {
 
-        fprintf(stderr, "Errore caricamento firewall.conf\n");
+        fprintf(stderr, "Error loading firewall.conf\n");
 
         return 1;
     }
 
-    // Init decision engine
+    // Initialize decision engine
     decision_init();
 
-    // Init NFQUEUE
+    // Initialize NFQUEUE
     if (nfqueue_init(handle_packet) < 0) {
 
-        fprintf(stderr, "Errore init NFQUEUE\n");
+        fprintf(stderr, "NFQUEUE initialization error\n");
 
         decision_cleanup();
 

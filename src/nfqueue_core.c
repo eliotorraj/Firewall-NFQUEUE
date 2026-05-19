@@ -16,7 +16,7 @@ static struct nfq_q_handle *qh = NULL;
 static int fd = -1;
 static volatile int running = 1;
 
-// callback utente
+// user callback
 static packet_handler_cb user_cb = NULL;
 
 static void handle_sigint(int sig) {
@@ -24,7 +24,7 @@ static void handle_sigint(int sig) {
     running = 0;
 }
 
-// CALLBACK INTERNA NFQUEUE
+// INTERNAL NFQUEUE CALLBACK
 
 static int nfqueue_callback(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *nfa, void *data){
     
@@ -34,7 +34,7 @@ static int nfqueue_callback(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, str
     unsigned char *payload;
     int payload_len;
 
-    // 1. OTTIENI HEADER (ID PACCHETTO)
+    // 1. GET HEADER (PACKET ID)
     struct nfqnl_msg_packet_hdr *ph;
     ph = nfq_get_msg_packet_hdr(nfa);
 
@@ -44,15 +44,15 @@ static int nfqueue_callback(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, str
         id = ntohl(ph->packet_id);
     }
 
-    // 2. OTTIENI PAYLOAD
+    // 2. GET PAYLOAD
     payload_len = nfq_get_payload(nfa, &payload);
 
     if (payload_len < 0) {
-        fprintf(stderr, "Errore: impossibile ottenere payload\n");
+        fprintf(stderr, "Error: unable to get payload\n");
         return nfq_set_verdict2(qh, id, NF_ACCEPT, FW_MARK_NONE, 0, NULL);
     }
 
-    // 3. CHIAMA CALLBACK UTENTE
+    // 3. CALL USER CALLBACK
     int verdict = NF_ACCEPT;
     uint32_t mark = FW_MARK_NONE;
 
@@ -65,13 +65,13 @@ static int nfqueue_callback(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, str
             mark = FW_MARK_PASS;
         } 
         else {
-            // Il DROP reale viene applicato dalle regole iptables dopo il save-mark.
+            // The actual DROP is applied by iptables rules after save-mark.
             verdict = NF_ACCEPT;
             mark = FW_MARK_DROP;
         }
     }
 
-    // 4. INVIA VERDICT AL KERNEL
+    // 4. SEND VERDICT TO THE KERNEL
     return nfq_set_verdict2(qh, id, verdict, mark, 0, NULL);
 }
 
@@ -81,38 +81,38 @@ int nfqueue_init(packet_handler_cb cb){
     
     user_cb = cb;
 
-    // Apri handler
+    // Open handler
     h = nfq_open();
 
     if (!h) {
-        fprintf(stderr, "Errore: nfq_open()\n");
+        fprintf(stderr, "Error: nfq_open()\n");
         return -1;
     }
 
-    // Sgancia handler esistente (sicurezza)
+    // Detach any existing handler (safety)
     if (nfq_unbind_pf(h, AF_INET) < 0) {
-        fprintf(stderr, "Errore: nfq_unbind_pf()\n");
+        fprintf(stderr, "Error: nfq_unbind_pf()\n");
     }
 
-    // Associa a IPv4
+    // Bind to IPv4
     if (nfq_bind_pf(h, AF_INET) < 0) {
-        fprintf(stderr, "Errore: nfq_bind_pf()\n");
+        fprintf(stderr, "Error: nfq_bind_pf()\n");
         nfq_close(h);
         return -1;
     }
 
-    // Crea coda 0
+    // Create queue 0
     qh = nfq_create_queue(h, 0, &nfqueue_callback, NULL);
 
     if (!qh) {
-        fprintf(stderr, "Errore: nfq_create_queue()\n");
+        fprintf(stderr, "Error: nfq_create_queue()\n");
         nfq_close(h);
         return -1;
     }
 
-    // Modalità copia pacchetti (FULL PACKET)
+    // Packet copy mode (FULL PACKET)
     if (nfq_set_mode(qh, NFQNL_COPY_PACKET, 0xffff) < 0) {
-        fprintf(stderr, "Errore: nfq_set_mode()\n");
+        fprintf(stderr, "Error: nfq_set_mode()\n");
         nfq_destroy_queue(qh);
         nfq_close(h);
         return -1;
@@ -120,19 +120,19 @@ int nfqueue_init(packet_handler_cb cb){
 
     fd = nfq_fd(h);
 
-    printf("[NFQUEUE] Inizializzato correttamente\n");
+    printf("[NFQUEUE] Initialized successfully\n");
 
     return 0;
 }
 
-//Loop Principale
+// Main loop
 void nfqueue_run(){
 
     char buffer[4096] __attribute__ ((aligned));
 
     signal(SIGINT, handle_sigint);
 
-    printf("[NFQUEUE] In ascolto pacchetti...\n");
+    printf("[NFQUEUE] Listening for packets...\n");
 
     while (running) {
 
@@ -153,7 +153,7 @@ void nfqueue_run(){
     printf("[NFQUEUE] Stopping...\n");
 }
 
-//CleanUp
+// Cleanup
 void nfqueue_cleanup(){
     
     if (qh)
@@ -164,5 +164,5 @@ void nfqueue_cleanup(){
         nfq_close(h);
     }
 
-    printf("[NFQUEUE] Cleanup completato\n");
+    printf("[NFQUEUE] Cleanup completed\n");
 }

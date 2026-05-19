@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "packet.h"
 
-// COSTANTI
+// CONSTANTS
 
 #define RULE_ALLOW 1
 #define RULE_DROP  2
@@ -14,7 +14,7 @@
 #define RULES_OK     0
 #define RULES_ERROR -1
 
-// STRUTTURA REGOLA
+// RULE STRUCTURE
 
 typedef struct {
     char src_ip[16];
@@ -25,7 +25,7 @@ typedef struct {
     int action;
 } rule_t;
 
-// RISULTATO MATCH
+// MATCH RESULT
 
 typedef struct {
     int matched;

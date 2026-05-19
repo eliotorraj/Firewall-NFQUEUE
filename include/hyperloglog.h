@@ -6,20 +6,20 @@
 #define HLL_OK      0
 #define HLL_ERROR  -1
 
-// CONFIGURAZIONE HYPERLOGLOG
+// HYPERLOGLOG CONFIGURATION
 
-// HLL_P indica quanti bit usiamo per scegliere il registro.
-// Con P=10 abbiamo 2^10 = 1024 registri.
+// HLL_P indicates how many bits are used to choose the register.
+// With P=10 we have 2^10 = 1024 registers.
 #define HLL_P 10
 #define HLL_M (1 << HLL_P)
 
-// Inizializza i registri HyperLogLog.
+// Initializes the HyperLogLog registers.
 int  hll_init(void);
 
-// Aggiunge un IP sorgente alla stima.
+// Adds a source IP address to the estimate.
 int  hll_add_ip(const char *src_ip);
 
-// Restituisce la stima del numero di IP sorgenti unici.
+// Returns the estimate of the number of unique source IP addresses.
 int hll_get_cardinality(void);
 
 const char *hll_last_error(void);

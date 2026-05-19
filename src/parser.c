@@ -52,12 +52,12 @@ int parse_packet(unsigned char *data, int len, packet_t *pkt){
 
     struct ip_header *ip = (struct ip_header *)data;
 
-    // Solo IPv4
+    // IPv4 only
     if (ip->version != 4) {
         return 0;
     }
 
-    // Validazione IHL
+    // IHL validation
     if (ip->ihl < 5) {
         return 0;
     }
