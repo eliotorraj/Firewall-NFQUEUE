@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-// Packet marks used with iptables CONNMARK.
+// Packet marks used together with iptables CONNMARK.
 #define FW_MARK_NONE 0x0
 #define FW_MARK_PASS 0x1
 #define FW_MARK_DROP 0x2
@@ -18,10 +18,10 @@ typedef int (*packet_handler_cb)(
     int len
 );
 
-// Initializes NFQUEUE and registers the callback.
+// Initialize NFQUEUE and register the callback.
 int nfqueue_init(packet_handler_cb cb);
 
-// Main loop (blocking).
+// Main blocking loop.
 void nfqueue_run();
 
 // Resource cleanup.

@@ -8,18 +8,18 @@
 
 // HYPERLOGLOG CONFIGURATION
 
-// HLL_P indicates how many bits are used to choose the register.
-// With P=10 we have 2^10 = 1024 registers.
+// HLL_P defines how many bits are used to select the register.
+// With P=10, we have 2^10 = 1024 registers.
 #define HLL_P 10
 #define HLL_M (1 << HLL_P)
 
-// Initializes the HyperLogLog registers.
+// Initialize HyperLogLog registers.
 int  hll_init(void);
 
-// Adds a source IP address to the estimate.
+// Add a source IP to the estimate.
 int  hll_add_ip(const char *src_ip);
 
-// Returns the estimate of the number of unique source IP addresses.
+// Return the estimated number of unique source IPs.
 int hll_get_cardinality(void);
 
 const char *hll_last_error(void);

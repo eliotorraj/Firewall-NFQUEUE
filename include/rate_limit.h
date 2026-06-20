@@ -6,14 +6,14 @@
 
 // LEAKY BUCKET CONSTANTS
 
-// Maximum number of trackable source IP addresses.
+// Maximum number of tracked source IPs.
 #define MAX_BUCKETS 1024
 
 // Maximum bucket threshold.
-// If an IP address exceeds this value, it is blocked.
+// If an IP exceeds this value, it is blocked.
 #define RATE_LIMIT_MAX_TOKENS 10
 
-// Rate at which the bucket drains.
+// Bucket leak rate.
 // Here: 1 token removed per second.
 #define RATE_LIMIT_LEAK_RATE 1
 
@@ -23,22 +23,22 @@
 
 // BUCKET STRUCTURE
 
-// Each source IP address has a bucket.
+// Each source IP has one bucket.
 // The more packets it sends, the more tokens it accumulates.
-// Over time, tokens decrease.
+// Tokens decrease over time.
 typedef struct {
-    char ip[16];             // source IP associated with the bucket
+    char ip[16];             // source IP associated with this bucket
     int tokens;              // current bucket level
-    time_t last_update;      // last time the bucket was updated
+    time_t last_update;      // last bucket update time
     int used;                // 1 if this slot is occupied
 } bucket_t;
 
 // API
 
-// Initializes the bucket table.
+// Initialize the bucket table.
 int rate_limit_init(void);
 
-// Checks whether a packet exceeds the rate limit.
+// Check whether a packet exceeds the rate limit.
 // Returns 1 if it must be blocked, 0 if it can continue.
 int rate_limit_check(packet_t *pkt);
 const char *rate_limit_last_error(void);

@@ -5,7 +5,7 @@
 
 #include "parser.h"
 
-//Packet Header
+// Packet headers.
 struct ip_header {
     unsigned char ihl:4;
     unsigned char version:4;
@@ -30,7 +30,7 @@ struct udp_header {
     unsigned short dest;
 };
 
-//Parser
+// Parser.
 int parse_packet(unsigned char *data, int len, packet_t *pkt){
 
     size_t packet_len;
@@ -52,12 +52,12 @@ int parse_packet(unsigned char *data, int len, packet_t *pkt){
 
     struct ip_header *ip = (struct ip_header *)data;
 
-    // IPv4 only
+    // IPv4 only.
     if (ip->version != 4) {
         return 0;
     }
 
-    // IHL validation
+    // IHL validation.
     if (ip->ihl < 5) {
         return 0;
     }
@@ -83,7 +83,7 @@ int parse_packet(unsigned char *data, int len, packet_t *pkt){
 
     pkt->protocol = ip->protocol;
 
-    // Default
+    // Default values.
     pkt->src_port = 0;
     pkt->dst_port = 0;
 

@@ -39,7 +39,7 @@ void decision_cleanup(void)
     }
 }
 
-// LOG PACKET
+// PACKET LOGGING
 
 static void log_packet(packet_t *pkt, const char *reason, int decision){
     
@@ -90,7 +90,7 @@ static void log_stats(void){
 
     int unique_ips = hll_get_cardinality();
 
-    fprintf(log_file, "[STATS] Unique source IPs ≈ %d\n", unique_ips);
+    fprintf(log_file, "[STATS] Unique source IPs ~ %d\n", unique_ips);
 
     fflush(log_file);
 }
@@ -129,7 +129,7 @@ decision_result_t decide(packet_t *pkt){
 
     if (rr.matched) {
 
-        // Immediate DROP
+        // Immediate DROP.
         if (rr.action == RULE_DROP) {
 
             log_packet(pkt, "RULE_DROP", DECISION_DROP);
@@ -173,7 +173,7 @@ decision_result_t decide(packet_t *pkt){
         };
     }
 
-    // Decision
+// Decision.
 
     log_packet(pkt, reason, base_decision);
 

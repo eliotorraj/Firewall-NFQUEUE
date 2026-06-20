@@ -8,7 +8,7 @@
 // CALLBACK
 
 int handle_packet(unsigned char *data, int len){
-    
+
     packet_t pkt;
 
     if (parse_packet(data, len, &pkt) == 0) {
@@ -33,23 +33,28 @@ int handle_packet(unsigned char *data, int len){
 
 // MAIN
 
-int main()
+int main(int argc, char *argv[])
 {
-    // Load rules from file
-    if (rules_init("firewall.conf") != 0) {
+    // Load rules from file.
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <config_file>\n", argv[0]);
+        return 1;
+    }
 
-        fprintf(stderr, "Error loading firewall.conf\n");
+    if (rules_init(argv[1]) != 0) {
+
+        fprintf(stderr, "Error loading %s\n", argv[1]);
 
         return 1;
     }
 
-    // Initialize decision engine
+    // Init decision engine.
     decision_init();
 
-    // Initialize NFQUEUE
+    // Init NFQUEUE.
     if (nfqueue_init(handle_packet) < 0) {
 
-        fprintf(stderr, "NFQUEUE initialization error\n");
+        fprintf(stderr, "NFQUEUE init error\n");
 
         decision_cleanup();
 

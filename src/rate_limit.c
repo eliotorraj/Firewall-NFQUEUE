@@ -5,12 +5,12 @@
 // STORAGE BUCKET
 
 // WORKFLOW:
-// This table lives for the entire firewall execution.
-// It stores recent traffic for each source IP address.
+// This table lives for the whole firewall execution.
+// It tracks recent traffic for each source IP.
 static bucket_t buckets[MAX_BUCKETS];
 
 
-// Store the last error in a string, so the cause of a possible error is available.
+// Store the last error string to expose the cause of a failure.
 static const char *last_error = "no error";
 
 const char *rate_limit_last_error(void) {
@@ -19,15 +19,15 @@ const char *rate_limit_last_error(void) {
 
 // HASH IP
 
-// Converts an IP string into a number.
-// Used to quickly choose a position in the table.
+// Convert an IP string into a number.
+// This is used to quickly choose a table position.
 // Hash: djb2, created by Dan Bernstein.
 static unsigned int hash_ip(const char *ip) {
-    // 5381 is a prime number with good statistical properties for reducing initial collisions.
+    // 5381 is a prime with useful statistical properties for reducing initial collisions.
     unsigned int hash = 5381;
 
-    // Using << 5 is equivalent to multiplying by 32; adding hash gives *33,
-    // which spreads similar strings across distant points in the table.
+    // (hash << 5) is equivalent to hash * 32; adding hash gives hash * 33.
+    // This helps spread similar strings across different table positions.
     while (*ip != '\0') {
         hash = ((hash << 5) + hash) + (unsigned char)(*ip);
         ip++;
@@ -39,8 +39,8 @@ static unsigned int hash_ip(const char *ip) {
 // INIT
 
 // WORKFLOW:
-// This function must be called when the program starts,
-// ideally inside decision_init().
+// This function should be called at program startup,
+// ideally from decision_init().
 int rate_limit_init(void) {
 
     time_t now = time(NULL);
@@ -64,15 +64,14 @@ int rate_limit_init(void) {
 // FIND OR CREATE BUCKET
 
 // WORKFLOW:
-// When a packet arrives, we need to find the bucket
-// associated with its source IP address.
-// If it does not exist yet, we create it.
+// When a packet arrives, find the bucket associated with its source IP.
+// If it does not exist yet, create it.
 static bucket_t *find_or_create_bucket(const char *ip) {
 
     unsigned int index = hash_ip(ip) % MAX_BUCKETS;
     unsigned int start = index;
 
-    // If the position is occupied by another IP, try the next position.
+    // If the slot is occupied by another IP, try the next position.
     while (buckets[index].used) {
 
         if (strcmp(buckets[index].ip, ip) == 0) {
@@ -101,7 +100,7 @@ static bucket_t *find_or_create_bucket(const char *ip) {
 
 // WORKFLOW:
 // This function is called by the Decision Engine
-// after static rules have been checked.
+// after static rule checking.
 //
 // Logic:
 // - each packet increases the bucket level
@@ -125,11 +124,11 @@ int rate_limit_check(packet_t *pkt) {
         return RATE_LIMIT_ERROR;
     }
 
-    // Find the bucket for the packet's source IP address.
+    // Find the bucket for the packet source IP.
     bucket = find_or_create_bucket(pkt->src_ip);
 
     if (bucket == NULL) {
-        // If no more IP addresses can be tracked, use a conservative choice: block the packet.
+        // If no more IPs can be tracked, use a conservative policy: block the packet.
         last_error = "bucket table full";
         return RATE_LIMIT_ERROR;
     }
@@ -147,7 +146,7 @@ int rate_limit_check(packet_t *pkt) {
         elapsed = 0;
     }
 
-    // If time has passed since the last packet, the bucket drains.
+    // If time has passed since the last packet, the bucket leaks.
     if (elapsed > 0) {
         
         leaked_tokens = elapsed * RATE_LIMIT_LEAK_RATE;
@@ -164,7 +163,7 @@ int rate_limit_check(packet_t *pkt) {
     // The current packet increases the bucket level.
     bucket->tokens++;
 
-    // If the bucket exceeds the threshold, the IP address is sending too much traffic.
+    // If the bucket exceeds the threshold, the IP is sending too much traffic.
     if (bucket->tokens > RATE_LIMIT_MAX_TOKENS) {
         last_error = "rate limit exceeded";
         return RATE_LIMIT_DROP;

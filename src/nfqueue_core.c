@@ -16,7 +16,7 @@ static struct nfq_q_handle *qh = NULL;
 static int fd = -1;
 static volatile int running = 1;
 
-// user callback
+// User callback.
 static packet_handler_cb user_cb = NULL;
 
 static void handle_sigint(int sig) {
@@ -27,7 +27,7 @@ static void handle_sigint(int sig) {
 // INTERNAL NFQUEUE CALLBACK
 
 static int nfqueue_callback(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *nfa, void *data){
-    
+
     (void)nfmsg;
     (void)data;
 
@@ -63,9 +63,9 @@ static int nfqueue_callback(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, str
         if (res == 1) {
             verdict = NF_ACCEPT;
             mark = FW_MARK_PASS;
-        } 
+        }
         else {
-            // The actual DROP is applied by iptables rules after save-mark.
+            // The final DROP is applied in FW_POSTROUTING after save-mark.
             verdict = NF_ACCEPT;
             mark = FW_MARK_DROP;
         }
@@ -78,10 +78,10 @@ static int nfqueue_callback(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, str
 //INIT
 
 int nfqueue_init(packet_handler_cb cb){
-    
+
     user_cb = cb;
 
-    // Open handler
+    // Open handler.
     h = nfq_open();
 
     if (!h) {
@@ -89,19 +89,19 @@ int nfqueue_init(packet_handler_cb cb){
         return -1;
     }
 
-    // Detach any existing handler (safety)
+    // Unbind any existing handler for safety.
     if (nfq_unbind_pf(h, AF_INET) < 0) {
         fprintf(stderr, "Error: nfq_unbind_pf()\n");
     }
 
-    // Bind to IPv4
+    // Bind to IPv4.
     if (nfq_bind_pf(h, AF_INET) < 0) {
         fprintf(stderr, "Error: nfq_bind_pf()\n");
         nfq_close(h);
         return -1;
     }
 
-    // Create queue 0
+    // Create queue 0.
     qh = nfq_create_queue(h, 0, &nfqueue_callback, NULL);
 
     if (!qh) {
@@ -110,7 +110,7 @@ int nfqueue_init(packet_handler_cb cb){
         return -1;
     }
 
-    // Packet copy mode (FULL PACKET)
+    // Packet copy mode (full packet).
     if (nfq_set_mode(qh, NFQNL_COPY_PACKET, 0xffff) < 0) {
         fprintf(stderr, "Error: nfq_set_mode()\n");
         nfq_destroy_queue(qh);
@@ -125,7 +125,7 @@ int nfqueue_init(packet_handler_cb cb){
     return 0;
 }
 
-// Main loop
+// Main loop.
 void nfqueue_run(){
 
     char buffer[4096] __attribute__ ((aligned));
@@ -153,9 +153,9 @@ void nfqueue_run(){
     printf("[NFQUEUE] Stopping...\n");
 }
 
-// Cleanup
+// Cleanup.
 void nfqueue_cleanup(){
-    
+
     if (qh)
         nfq_destroy_queue(qh);
 

@@ -115,7 +115,7 @@ static int match_protocol(int rule_proto, int pkt_proto){
     return rule_proto == pkt_proto;
 }
 
-// Look for a match against the rules from the .conf file.
+// Look for a match against rules loaded from the .conf file.
 
 static int match_rule(packet_t *pkt, rule_t *r){
 
@@ -149,13 +149,13 @@ int rules_init(const char *config_file){
     fp = fopen(config_file, "r");
 
     if (!fp) {
-        perror("fopen firewall.conf");
+        perror(config_file);
         return RULES_ERROR;
     }
 
     while (fgets(line, sizeof(line), fp)) {
 
-        // Skip comments and blank lines, including those with leading spaces.
+        // Skip comments and blank lines, including lines with leading spaces.
         if (is_comment_or_blank(line))
             continue;
 

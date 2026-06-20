@@ -14,8 +14,8 @@ const char *hll_last_error(void) {
 // STORAGE HYPERLOGLOG
 
 // WORKFLOW:
-// These registers live for the entire execution.
-// Each packet updates the estimate of unique source IP addresses.
+// These registers live for the whole execution.
+// Each packet updates the estimate of unique source IPs.
 static unsigned char registers[HLL_M];
 
 #define HLL_HASH_BITS 32
@@ -46,13 +46,13 @@ static int hash_ipv4(const char *ip, uint32_t *out_hash) {
         return HLL_ERROR;
     }
 
-    // Converts the string "192.168.1.10" into a binary IPv4 number.
+    // Convert a string such as "192.168.1.10" into a binary IPv4 value.
     if (inet_pton(AF_INET, ip, &addr) != 1) {
         last_error = "invalid IPv4 address";
         return HLL_ERROR;
     }
 
-    // ntohl converts the value to host order. (from Big-Endian to Little-Endian)
+    // ntohl converts the value to host byte order.
     ip_value = ntohl(addr.s_addr);
 
     // XOR with a constant to prevent 0.0.0.0 from producing hash 0.
@@ -65,21 +65,21 @@ static int hash_ipv4(const char *ip, uint32_t *out_hash) {
 // COUNT ZEROS
 
 #if !defined(__GNUC__)
-// Counts how many leading zeros are present in the remaining hash bits. The more leading zeros we find, the more likely it is that the number of observed distinct elements is high, and therefore the rank is high too.
+// Count the leading zeroes in the remaining hash bits. The more leading zeroes
+// we find, the more likely the observed distinct-element count is high.
 static int hll_rank_slow(uint32_t value) {
     // Start from the lowest rank.
     int rank  = 1;
 
-    // The maximum rank occurs when all remaining bits are 0.
+    // The maximum rank is reached when all remaining bits are 0.
     int max_rank = HLL_REMAINING_BITS + 1; 
 
     if (value == 0) {
         return max_rank;
     }
 
-    // 0x80000000u is a mask with the most significant bit set to 1 and all other bits set to 0.
-    // In practice, we only inspect the leftmost bit; while it is 0, increase the rank and move to the next bit.
-    // When the AND result is 1, the leading zeros are over and we have found a 1. Stop and return the rank.
+    // 0x80000000u masks the most significant bit. While that bit is 0, increase
+    // the rank and shift to the next bit. Once a 1 is found, stop and return.
     while ((value & 0x80000000u) == 0 && rank < max_rank) {
         rank++;
         value <<= 1;
@@ -89,9 +89,9 @@ static int hll_rank_slow(uint32_t value) {
 }
 #endif
 
-// GCC can count the number of leading zeros directly in hardware, as seen in class: a more efficient implementation is possible.
+// GCC can count leading zeroes efficiently through a builtin.
 
-// __builtin_clz counts leading zeros using efficient instructions.
+// __builtin_clz counts leading zeroes using efficient instructions.
 // WARNING: it must never be called with value == 0.
 static int hll_rank_fast(uint32_t value) {
     if (value == 0) {
@@ -101,7 +101,7 @@ static int hll_rank_fast(uint32_t value) {
 #if defined(__GNUC__)
     int rank = __builtin_clz(value) + 1;
 
-    // Limit the maximum rank.
+    // Clamp the maximum rank.
     if (rank > HLL_REMAINING_BITS + 1) {
         return HLL_REMAINING_BITS + 1;
     }
@@ -116,8 +116,8 @@ static int hll_rank_fast(uint32_t value) {
 // INIT
 
 // WORKFLOW:
-// This function must be called when the firewall starts,
-// ideally inside decision_init().
+// This function should be called at firewall startup,
+// ideally from decision_init().
 int  hll_init(void) {
     
     for (int i = 0; i < HLL_M; i++) {
@@ -132,7 +132,7 @@ int  hll_init(void) {
 
 // WORKFLOW:
 // This function is called at the beginning of decide().
-// The packet is not accepted or blocked yet: we are only updating statistics.
+// The packet has not been accepted or blocked yet: we are only updating stats.
 int  hll_add_ip(const char *src_ip) {
     
     uint32_t hash;
@@ -149,16 +149,16 @@ int  hll_add_ip(const char *src_ip) {
         return HLL_ERROR;
     }
 
-    // The first HLL_P bits choose which register to update.
+    // The first HLL_P bits select which register to update.
     index = hash >> (32 - HLL_P);
 
-    // The remaining bits are used to calculate the rank.
+    // The remaining bits are used to compute the rank.
     remaining_bits = hash << HLL_P;
 
     // Slow version:
     // rank = hll_rank_slow(remaining_bits);
 
-    // GCC-optimized version:
+    // Optimized GCC version:
     rank = hll_rank_fast(remaining_bits);
 
     // Each register stores the maximum observed rank.
@@ -184,9 +184,10 @@ int hll_get_cardinality(void) {
     int zero_registers = 0;
 
 
-    alpha = 0.7213 / (1.0 + 1.079 / HLL_M); // correction constant (the values come from complex mathematical studies by the HLL inventor). It helps correct overestimation of the number of elements.
+    alpha = 0.7213 / (1.0 + 1.079 / HLL_M); // correction constant used by HLL to reduce estimation bias
 
-    // Harmonic mean of the register values. (It is preferred over the arithmetic mean because it gives less weight to extreme values that would influence the measure too much.)
+    // Harmonic mean of register values. It gives less weight to extreme values
+    // than the arithmetic mean, which would skew the estimate.
     for (int i = 0; i < HLL_M; i++) {
         sum += pow(2.0, -registers[i]); 
         
@@ -202,8 +203,8 @@ int hll_get_cardinality(void) {
     
     estimate = alpha * HLL_M * HLL_M / sum;  // estimation formula
 
-    // Useful correction for small numbers of IP addresses.
-    // Without this correction, HyperLogLog tends to overestimate heavily when only a few IP addresses have been seen.
+    // Small-range correction. Without it, HyperLogLog tends to overestimate
+    // significantly when only a few IPs have been observed.
     if (estimate <= 2.5 * HLL_M && zero_registers > 0) {
         estimate = HLL_M * log((double)HLL_M / zero_registers);
     }
